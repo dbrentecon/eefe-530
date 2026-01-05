@@ -1,0 +1,679 @@
+---
+title: "Lecture 01: Introduction"
+subtitle: "EEFE 530"
+author: "Daniel Brent"
+affiliation: "Pennsylvania State University"
+date: today
+format:
+  revealjs:
+    slide-number: true
+    incremental: true
+    css: my-css.css
+    theme: default
+  pdf:
+    toc: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+# devtools::install_github("dill/emoGG")
+library(pacman)
+p_load(
+  broom, tidyverse,
+  latex2exp, ggplot2, ggthemes, ggforce, viridis, extrafont, gridExtra,
+  kableExtra, snakecase, janitor,
+  data.table, dplyr, estimatr,
+  lubridate, knitr, parallel,
+  lfe,
+  here, magrittr
+)
+# Define pink color
+red_pink <- "#e64173"
+turquoise <- "#20B2AA"
+orange <- "#FFA500"
+red <- "#fb6107"
+blue <- "#254BE1"
+dblue <- '#0073e6'
+green <- "#8bb174"
+grey_light <- "grey70"
+grey_mid <- "grey50"
+grey_dark <- "grey20"
+red <- "#6A5ACD"
+slate <- "#314f4f"
+# Dark slate grey: #314f4f
+# Knitr options
+opts_chunk$set(
+  comment = "#>",
+  fig.align = "center",
+  fig.height = 7,
+  fig.width = 10.5,
+  warning = F,
+  message = F
+)
+opts_chunk$set(dev = "svg")
+options(device = function(file, width, height) {
+  svg(tempfile(), width = width, height = height)
+})
+options(crayon.enabled = F)
+options(knitr.table.format = "html")
+# A blank theme for ggplot
+theme_empty <- theme_bw() + theme(
+  line = element_blank(),
+  rect = element_blank(),
+  strip.text = element_blank(),
+  axis.text = element_blank(),
+  plot.title = element_blank(),
+  axis.title = element_blank(),
+  plot.margin = structure(c(0, 0, -0.5, -1), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_simple <- theme_bw() + theme(
+  line = element_blank(),
+  panel.grid = element_blank(),
+  rect = element_blank(),
+  strip.text = element_blank(),
+  axis.text.x = element_text(size = 18, family = "STIXGeneral"),
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank(),
+  plot.title = element_blank(),
+  axis.title = element_blank(),
+  # plot.margin = structure(c(0, 0, -1, -1), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes_math <- theme_void() + theme(
+  text = element_text(family = "MathJax_Math"),
+  axis.title = element_text(size = 22),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = "grey70",
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes_serif <- theme_void() + theme(
+  text = element_text(family = "MathJax_Main"),
+  axis.title = element_text(size = 22),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = "grey70",
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes <- theme_void() + theme(
+  text = element_text(family = "Fira Sans Book"),
+  axis.title = element_text(size = 18),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = grey_light,
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_set(theme_gray(base_size = 20))
+# Column names for regression results
+reg_columns <- c("Term", "Est.", "S.E.", "t stat.", "p-Value")
+# Function for formatting p values
+format_pvi <- function(pv) {
+  return(ifelse(
+    pv < 0.0001,
+    "<0.0001",
+    round(pv, 4) %>% format(scientific = F)
+  ))
+}
+format_pv <- function(pvs) lapply(X = pvs, FUN = format_pvi) %>% unlist()
+# Tidy regression results table
+tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", highlight_bold = T, digits = c(NA, 3, 3, 2, 5), title = NULL) {
+  x %>%
+    tidy() %>%
+    select(1:5) %>%
+    mutate(
+      term = terms,
+      p.value = p.value %>% format_pv()
+    ) %>%
+    kable(
+      col.names = reg_columns,
+      escape = F,
+      digits = digits,
+      caption = title
+    ) %>%
+    kable_styling(font_size = 20) %>%
+    row_spec(1:nrow(tidy(x)), background = "white") %>%
+    row_spec(highlight_row, bold = highlight_bold, color = highlight_color)
+}
+```
+
+# Table of contents {#toc}
+
+### Admin
+::: {.smallest}
+1. [Schedule](#schedule)
+1. [Mini-syllabus](#syllabus)
+:::
+
+
+### Research
+::: {.smallest}
+1. [Course Objectives](#obj)
+2. [*MHE*'s FAQs](#faqs)
+  1. [Question](#faq1)
+  1. [Experiment](#faq2)
+  1. [Identification](#faq3)
+  1. [Inference](#faq4)
+:::
+
+
+---
+# Schedule {#schedule}
+
+## Today
+::: {.smaller}
+- Get to know you: what are you working on and why are you here?
+- Basics of causal identification research <span class="red">*MHE*: Preface & Ch. 1</span>
+- What we will do in this class
+- <span class="mono">R</span>: Get R installed and learn some very basic syntax
+:::
+
+
+## Short run
+::: {.smaller}
+- Get more comfortable with <span class="mono">R</span>.
+- Review metrics and building intuition for causality and inference. 
+- Add tools to your methodological toolbox.
+- Jump start your research in a structured setting.
+:::
+
+
+## Long run
+::: {.smaller}
+<span class="hi">Goal:</span> Get comfortable with empirical causal research - *learn how to learn* 
+:::
+
+
+---
+
+# GitHub for This Course {#github-course}
+
+## How you will use GitHub
+- Access course materials (this repository)
+- Submit problem sets (GitHub Classroom)
+- Track revisions and feedback over time
+
+## Where to find things
+- `README.md`: course landing page and links
+- `lectures/`: lecture notes and code
+- `problem-sets/`: instructions and templates
+- `resources/`: software setup and readings
+
+---
+
+# GitHub Workflow (Minimum Viable)
+
+1. Create a GitHub account (if you do not already have one)
+2. Install R and RStudio
+3. Install Quarto (one time)
+4. Clone the course repository (or download a ZIP if you are not ready for Git yet)
+5. Pull updates regularly
+
+::: {.smallest}
+**Rule of thumb:** If something on the course page changes, you want that change locally before you start working.
+:::
+
+---
+
+# Creating Your Own GitHub Page {#github-pages}
+
+You will create a simple personal page for:
+- a short bio / research interests
+- links to replication exercises and course work (optional)
+- professional visibility
+
+## Fastest approach (GitHub Pages)
+1. Create a new repository named: `YOUR-USERNAME.github.io`
+2. Add a file named `index.html` (or a `README.md`)
+3. Go to **Settings → Pages**
+4. Set “Deploy from a branch” and select `main` / root
+5. Your site will be available at: `https://YOUR-USERNAME.github.io`
+
+---
+
+# Optional: Publish Quarto to GitHub Pages
+
+If you want your page to be generated from Quarto:
+
+1. Create a Quarto website project locally
+2. Render the site (Quarto creates a `_site/` folder)
+3. Configure Quarto to output to `docs/`
+4. Push to GitHub and enable Pages from the `docs/` folder
+
+::: {.smallest}
+We will provide a short template later; you do not need this for problem sets.
+:::
+
+
+# Reading
+
+## Next Week
+<!-- - <span class="dblue">Effect</span> Chapter 5 -->
+<!-- - <span class="orange">Mixtape</span> Chapter 4 -->
+- Guido W Imbens and Jeffrey M Wooldridge (2009). "Recent developments in the econometrics of program evaluation". *Journal of economic literature* 47.1, pp. 5:86
+- Susan Athey and Guido W Imbens (2017). "The state of applied econometrics: Causality and policy evaluation". *Journal of Economic Perspectives* 31.2, pp. 3:32
+- Arthur Lewbel (2019). "The identification zoo: Meanings of identification in econometric". *Journal of Economic Literature* 57.4, pp. 835:903
+
+---
+# Research
+
+---
+## What are you doing here? {.middle .inverse}
+
+---
+
+# Introductions
+
+- Name
+- Program/year
+- Research interests
+- Specific project (if applicable)
+- One thing you like to do in your free time
+
+---
+
+
+# This class
+
+- The goal is translating theory and methods into actual research projects.
+- Develop insight into causal thinking and provide tools for current and future research.
+- Problem sets will help you practice.
+- Exam will focus on intuition - critical for developing research questions and communicating methods/results.
+- This works better with participation.
+
+--
+
+The material and tools are pivotal for **a lot** of what you will do in the future.
+
+--
+
+<span class="hi">Take responsibility for your education and career.</span>
+
+- Commit  time to *understand* what you are doing.
+- Be proactive and curious - syllabus is flexible.
+
+---
+# General grad school thoughts
+## Everyone
+- You are the primarily one responsible for your success.
+  - Work hard.
+  - Think about how to utilize available resources.
+- Grad school goes by quick
+  - Good quote: *"I don't know what grad students do in their third year, but I know is takes them a year to do it"* -- unattributed
+- How can this class help you get to where you want to go?
+
+[**Resource from physics**](https://halas.rice.edu/steps-to-graduate-student-success)
+
+---
+
+# General grad school thoughts
+## Academic market
+- You need papers
+  - Ideally one is R&R or published when on the job market
+  - Need to show independent work
+  - Want to display initiative and a future pipeline
+
+## Non-academic market
+- You want to have marketable skills (like <span class="mono">R</span>)
+- Think about what type of job you want (industry/government/etc.)
+
+---
+
+
+# Books
+**Causal Inference/Identification**
+- <span class="red">Mostly Harmless Econometrics *Angrist and Pischke, 2008*</span>
+- <span class="orange">Causal Inference: The Mixtape *Cunningham 2020*</span>; [Link](https://mixtape.scunning.com/)
+- <span class="dblue">The Effect *Huntington-Klein 2021*</span>; [Link](https://theeffectbook.net/index.html)
+
+(last two available online)
+
+** Formal Theory **
+- Econometric Analysis *Greene, 2018*
+- Microeconometrics: Methods and Applications *Cameron and Trivedi, 2005*
+
+---
+
+# Papers
+
+<span class="hi-dblue">Overview papers</span> (JEL/JEP)
+- Abadie (2021) - Synthetic Control
+- Roth et al. (2022) - Difference-in-difference
+- Athey & Imbens (2019) - Machine learning
+
+--
+
+<span class="hi-dblue">Methods</span>
+- Abadie, Diamond & Hainmueller (2010) - Synthetic Control
+- Callaway & Sant'Anna (2020) - Difference-in-difference
+- Athey & Imbens (2016) - Machine learning
+
+--
+
+<span class="hi-dblue">Methods and applications</span>
+- Bueno & Valenta (2019) - Synthetic Control
+- Marcus & Sant'Anna (2020) - Difference-in-difference
+- Burlig, Knittel, Rapson, Reguant & Wolfram, (2019) - Machine learning
+
+
+---
+
+# Our class {#syllabus}
+## Mini-syllabus
+
+<span class="hi">Class:</span> Attend/participate. *Spend time* on assigned readings — especially papers. <span class="red">(10%)</span>
+
+<span class="hi">Problem sets:</span> 6-9 problem sets of replication and simulation in <span class="mono">R</span>. <span class="red">(50%)</span>
+
+<span class="hi">Paper:</span> Final exam.  <span class="red">(40%)</span>
+
+--
+
+***Note:*** This class is under (constant) development.
+- <span class="hi-slate">Challenge:</span> Less structure.
+- <span class="hi-slate">Benefit:</span> You can drive the direction of the class.
+
+---
+
+<!-- # Our class -->
+<!-- ## Paper<sub>1</sub> -->
+<!-- - Must use data -->
+<!-- - Must estimate a **causal** relationship -->
+<!-- - Must provide *well annotated* code and data  -->
+<!--   - I need to be able to replicate the results -->
+<!-- - Can be a replication + extension (e.g. update the data or add new analysis) -->
+<!-- - Can be an extension and/or refinement of paper from EEFE 531 -->
+<!-- - Ideally will be a paper in your dissertation and/or your second year paper (for EEFE students) -->
+<!-- - Questions? -->
+
+<!-- --- -->
+
+<!-- # Our class -->
+<!-- ## Paper<sub>2</sub> (from syllabus) -->
+<!-- 1. Identify a question that depends on a causal relationship -->
+<!-- 2. Develop an identification strategy  -->
+<!-- 3. Collect data and apply an econometric model to estimate a causal parameter -->
+<!-- 4. Communicate steps 1-3 and interpret the results  -->
+
+<!-- --- -->
+
+# Econometrics
+
+<span class="hi">Q:</span> What is special about econometrics relative to statistics or data science?
+
+--
+
+<span class="hi">A:</span> Causality
+
+---
+# Causal research
+---
+
+## Motivation
+
+> First, we believe that <span class="dblue">empirical research is most valuable when it uses data to answer specific causal questions, *as if* in a randomized clinical trial.</span> This view shapes our approach to most research questions. In the absence of a real experiment, we look for well-controlled comparisons and/or natural quasi-experiments. Of course, some quasi-experimental research designs are more convincing than others, but <span class="red">the econometric methods used in these studies are almost always fairly simple</span>.
+
+*Mostly Harmless Econometrics*, p. xii (color added)
+
+--
+
+<span class="dblue">1\. This ideology inherently compares research designs to "gold-standard" of RCTs.</span>
+--
+<br><span class="red">2\. The methods are usually (relatively) straightforward (after training).</span>
+---
+
+## Angrist and Pischke's FAQs<sup><span class="dblue">1</span></sup> {#faqs}
+
+::: {.footnote}
+<span class="dblue">1</span> See *MHE*, chapter 1.
+<span class="dblue">2</span> Credit for these questions goes to [Ed Rubin](http://edrub.in/) via [Reed Walker](https://w-reed-walker.com/).
+:::
+
+
+1. What is the <span class="hi">causal relationship of interest</span>?
+
+2. How would an <span class="hi">ideal experiment</span> capture this causal effect of interest?
+
+3. What is your <span class="hi">identification strategy</span>?
+
+4. What is your <span class="hi">mode of inference</span>?
+
+--
+
+***Note:*** Other questions also matter for developing quality research, *e.g.*,<sup><span class="dblue">2</span></sup>
+
+- Why is your question <span class="hi">important/interesting</span>?
+- Why is the <span class="hi">current literature</span> lacking or nonexistant?
+- How do you propose to <span class="hi">advance the literature</span>?
+---
+
+## FAQ<sub>1</sub>: What is the causal relationship of interest? {#faq1}
+
+Descriptive exercises can be [very interesting and important](https://www.opportunityatlas.org/), but in modern applied econometrics, <span class="hi-red">causality is paramount</span>.
+
+**Why?**
+
+--
+
+- Causal relationships directly <span class="hi-red">test theories</span> of how the world works.
+
+- Causal relationships provide us with <span class="hi-red">*counterfactuals*</span>—how the world would have looked (or will look) under different sets of policies/circumstances.
+
+--
+
+NOTE: If you can't clearly and succinctly name the causal relationship of interest, then you may not actually have a research project, and you definitely don't have a research topic for this class.
+---
+
+## FAQ<sub>1</sub>: What is the causal relationship of interest?
+
+*Some classic and new examples...*
+
+**Labor and Education**<br>How does an additional year of schooling affect wages?
+
+**Urban**<br>How do drivers respond to increased road capacity?
+
+**Environment**<br>How much does improved air quality increase housing values?
+
+**Health**<br>What is the effect of exposure to lead on test scores?
+
+---
+
+## FAQ<sub>2</sub>: What is the ideal experiment for this setting? {#faq2}
+
+Describing the *ideal experiment* helps us formulate
+
+- the <span class="dblue">exact causal relationship(s)</span>
+
+- the dimensions we want to <span class="dblue">manipulate</span>
+
+- the factors we need to <span class="dblue">hold constant</span>
+
+--
+
+NOTE: These *ideal experiments* are generally hypothetical and often impossible. However, if you can't describe the ideal research design, it will be hard to come up with reasiebl data and research designs in real life.
+
+--
+
+Angrist and Pischke call questions without ideal experiments *fundamentally unanswerable questions* (FUQs).
+---
+
+## FAQ<sub>2</sub>: What is the ideal experiment for this setting?
+
+*Examples of potentially answerable questions...*
+
+<!-- **Labor and Education**<br>How does an additional year of schooling affect wages? -->
+
+<!-- **Urban**<br>How do drivers respond to increased road capacity -->
+
+<!-- **Environment**<br>How much does improved air quality increase housing values? -->
+
+<!-- **Health**<br>What is the effect of smoking on health outcomes -->
+
+- **The effect of education on wages:** Randomize scholarships or incentives to remain in school.
+- **Urban:** Randomly allocate road infrastructure funding.
+- **Environment:** Randomly take power stations or industrial plants offline.
+- **Health:** Randomly test and improve lead fixtures in homes and schools.
+
+--
+
+*Examples of challenging questions to answer (potentially unanswerable?)...*<sup><span class="dblue">1</span></sup>
+
+::: {.footnote}
+ <sup><span class="dblue">1</span></sup> Courtesy of [Ed Rubin](http://edrub.in/) 
+:::
+
+
+
+- How does gender affect eventual career paths?
+- What role does race play in one's wages?
+
+---
+
+## FAQ<sub>2</sub>: What is the ideal experiment for this setting?
+
+Sometimes even simple-sounding policy questions turn out to be fundamentally unanswerable.
+
+--
+
+*Example of a fundamentally unanswerable question*:
+> Do children perform better by starting school at an older age?
+
+--
+
+**Proposed ideal experiment**
+
+1. Randomize kids to start 1<sup>st</sup> grade at age 6 or 7.
+2. Compare 2<sup>nd</sup> grade test scores.
+
+--
+
+<span class="hi">Problem:</span>
+--
+ Kids who start later are older in 2<sup>nd</sup> grade. Older kids do better. Do we want the effect of starting later or just being older?
+
+---
+count: false
+
+## FAQ<sub>2</sub>: What is the ideal experiment for this setting?
+
+Sometimes even simple-sounding policy questions turn out to be fundamentally unanswerable.
+
+*Example of a fundamentally unanswerable question*:
+> Do children perform better by starting school at an older age?
+
+**Proposed ideal experiment<sub>2.0</sub>**
+
+1. Randomize kids to start 1<sup>st</sup> grade at age 6 or 7.
+2. <span class="hi-red">Control for age.</span> Compare test scores when kids are age 8.
+
+--
+
+<span class="hi">Problem<sub>2.0</sub></span>
+--
+ The two groups will have been in school for different numbers of years (1 vs. 2). More school should mean better scores.
+---
+count: false
+
+## FAQ<sub>2</sub>: What is the ideal experiment for this setting?
+
+Sometimes even simple-sounding policy questions turn out to be fundamentally unanswerable.
+
+*Example of a fundamentally unanswerable question*:
+> Do children perform better by starting school at an older age?
+
+<span class="hi">Central problem:</span> Mechanical links between ages and time in school.
+
+::: {.center}
+(Start Age) = (Current Age) – (Time in School)
+:::
+
+
+No experiment can separate these effects (for school-age children).
+---
+
+## FAQ<sub>3</sub>: What's your identification strategy? {#faq3}
+
+This question<sup><span class="blue">1</span></sup> describes how you plan to recover/observe *as good as random* assignment of your variable of interest (approximating your ideal experiment) <span class="hi-blue">in real life</span>.
+
+::: {.footnote}
+<sup><span class="blue">1</span></sup> You will hear this question asked *a lot*.
+:::
+
+
+***Examples***<div style="margin-bottom:-20px;">
+</div>
+::: {.smaller}
+- Borders of implementation for daylight savings time<br>
+  -[Energy consumption](https://www.mitpressjournals.org/doi/abs/10.1162/REST_a_00131)
+- License plates and lucky numbers in Beijing<br>
+  -[Air quality](https://www.sciencedirect.com/science/article/pii/S004727271500016X); [Driving](https://www.sciencedirect.com/science/article/pii/S0095069619300300); [Congestion Costs](https://www.aeaweb.org/articles?id=10.1257/pol.20170195) 
+- Thresholds or notches in policy eligibility<br>
+  -[Pensions eligibility](https://www.aeaweb.org/articles?id=10.1257/aer.99.5.2209); [Capital subsidies](https://www.sciencedirect.com/science/article/pii/S0047272713002156); [R&D subsidies](https://www.aeaweb.org/articles?id=10.1257/pol.6.4.100)
+- Random judge assignments<br>
+  -[Football games](https://www.aeaweb.org/articles?id=10.1257/app.20160390); [Politics](aeaweb.org/articles?id=10.1257/pol.20170329); [Climate](https://www.aeaweb.org/articles?id=10.1257/app.20170223)
+:::
+
+
+---
+
+## FAQ<sub>3</sub>: What's your identification strategy?
+
+*A brief history*
+
+The term "identification strategy" goes back to Angrist and Krueger (1991).
+
+---
+
+>  The variety of evidence presented in Section I establishes that compulsory schooling laws increase educational attainment for those covered by the laws. In Section II we consider whether students who attend school longer because of compulsory schooling receive higher earnings as a result of their increased schooling.  Two-stage least squares (TSLS) estimates are used in which the  source of **identification** is variation in education that results **solely from differences in season of birth-which, in turn, results from the effect of compulsory schooling laws.** The results suggest that men who are forced to attend school by compulsory schooling laws **earn higher wages as a result of their increased schooling.**
+
+-  *Angrist and Krueger (1991)*
+
+---
+
+## FAQ<sub>4</sub>: What is your mode of inference? {#faq4}
+
+Historically, inference—standard errors, confidence intervals, hypothesis tests, *etc.*—has received much less attention than point estimates. It's becoming more important (more than an afterthought).
+
+- Which <span class="hi">population</span> does your sample represent?
+
+- How much <span class="hi">noise</span> (error) exists in your estimator (and estimates)?
+
+- How much <span class="hi">variation</span> do you actually have in your variable of interest?
+
+--
+
+Without careful inference, we don't know the difference between
+- 21% ± 2.3%
+- 21% ± 20.3%
+---
+
+---
+
+```{r}
+#| label: generate unpaused files
+#| include: false
+#| eval: false
+source("../../ScriptsR/unpause2.R")
+unpause("01-Intro.Rmd", ".", T, T)
+pagedown::chrome_print("01-Intro.Rmd")
+```

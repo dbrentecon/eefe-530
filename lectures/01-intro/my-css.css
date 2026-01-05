@@ -1,0 +1,14 @@
+/* Minimal styling for lecture slides (adapt as desired) */
+
+.hi { font-weight: 700; }
+.hi-red { font-weight: 700; color: #b00020; }
+.hi-blue, .blue { font-weight: 700; color: #0073e6; }
+.hi-dblue, .dblue { font-weight: 700; color: #00509e; }
+.hi-slate { font-weight: 700; color: #314f4f; }
+.orange { color: #ff9900; font-weight: 700; }
+.red { color: #b00020; font-weight: 700; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.smaller { font-size: 0.85em; }
+.smallest { font-size: 0.75em; }
+.footnote { font-size: 0.7em; opacity: 0.9; margin-top: 1.5em; }
