@@ -1,0 +1,3 @@
+# Syllabus
+
+Official course syllabus.
