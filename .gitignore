@@ -1,0 +1,14 @@
+# R
+.Rhistory
+.RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+
+# Quarto
+.quarto/
+
+# Rendered outputs (optional)
+*_cache/
+*_files/
