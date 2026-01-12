@@ -1,0 +1,232 @@
+/* psu.scss — Penn State Reveal theme for Quarto
+   Fixes section divider slides to be full-bleed background.
+*/
+
+/*-- scss:defaults --*/
+$psu-navy:  #001E44;
+$psu-blue:  #1E407C;
+$psu-light: #96BEE6;
+$psu-white: #FFFFFF;
+
+$presentation-font-size-root: 34px;
+$presentation-heading-font: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+$presentation-heading-color: $psu-navy;
+
+$body-bg: $psu-white;
+$body-color: #111111;
+
+$link-color: $psu-blue;
+$link-color-hover: $psu-navy;
+
+$code-block-bg: #f7f7f7;
+$code-color: $psu-navy;
+
+
+/*-- scss:rules --*/
+
+/* Content slide polish */
+.reveal .slides h2,
+.reveal .slides h3 {
+  border-bottom: 3px solid $psu-light;
+  padding-bottom: 0.15em;
+}
+
+/* True first title slide (Quarto adds .quarto-title-block) */
+.reveal .slides section.title-slide.quarto-title-block {
+  background: $psu-navy !important;
+  color: $psu-white !important;
+}
+.reveal .slides section.title-slide.quarto-title-block * {
+  color: $psu-white !important;
+}
+.reveal .slides section.title-slide.quarto-title-block a {
+  color: $psu-light !important;
+}
+
+
+/* ===== Full-bleed SECTION DIVIDERS =====
+   Your dividers are: section.slide.level1 (often also has title-slide).
+   Key fix: override inline top-centering and force full slide dimensions.
+*/
+.reveal .slides section.slide.level1 {
+  /* Force full slide canvas */
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+
+  /* Full background */
+  background: $psu-navy !important;
+  color: $psu-white !important;
+
+  /* Center title */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+
+  /* Remove any inherited spacing that can create “box” feel */
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Divider heading */
+.reveal .slides section.slide.level1 > h1,
+.reveal .slides section.slide.level1 > h2 {
+  color: $psu-white !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 6% !important;
+  font-size: 2.4em;
+  line-height: 1.15;
+}
+
+/* Slide number slightly muted */
+.reveal .slide-number {
+  opacity: 0.55;
+}
+
+/* ===== TRUE FULL-BLEED SECTION DIVIDERS (NO WHITE BORDER) ===== */
+
+/* Remove Reveal padding for divider slides */
+.reveal .slides section.slide.level1 {
+  padding: 0 !important;
+}
+
+/* Force background to fill the entire Reveal viewport */
+.reveal .slides section.slide.level1::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: $psu-navy;
+  z-index: -1;
+}
+
+/* Ensure text stays above the background */
+.reveal .slides section.slide.level1 > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Kill remaining top/left border by painting the viewport background ===== */
+/* When the current slide is a level-1 divider, make the whole page navy */
+html:has(.reveal .slides section.slide.level1.present),
+body:has(.reveal .slides section.slide.level1.present) {
+  background: $psu-navy !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden; /* avoids a 1px scroll/pixel shift */
+}
+
+/* Ensure Reveal itself isn't introducing a margin/pad */
+.reveal,
+.reveal .slides {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+/* Make sure our fixed background truly starts at the viewport origin */
+.reveal .slides section.slide.level1::before {
+  inset: 0 !important;        /* shorthand for top/right/bottom/left: 0 */
+  width: auto !important;
+  height: auto !important;
+}
+
+
+
+/* =========================
+   Custom color palette
+   ========================= */
+.css-proof { outline: 6px solid red !important; }
+
+:root{
+  --red-pink:   #e64173;
+  --turquoise:  #20B2AA;
+  --orange:     #FFA500;
+  --red-main:   #B22222;   /* avoid clashing with existing .red */
+  --blue-main:  #254BE1;
+  --dblue-main: #003366;
+  --green:      #8bb174;
+  --grey-light: grey70;
+  --grey-mid:   grey50;
+  --grey-dark:  grey20;
+  --slate:      #314f4f;
+  --slateblue:  #6A5ACD;
+}
+
+/* =========================
+   Text color utilities
+   Use in .qmd as: [text]{.red-pink}
+   ========================= */
+
+.red-pink   { color: var(--red-pink); }
+.turquoise  { color: var(--turquoise); }
+.orange     { color: var(--orange); }
+.red   { color: var(--red-main); }
+.blue  { color: var(--blue-main); }
+.dblue { color: var(--dblue-main); }
+.green      { color: var(--green); }
+.grey-light { color: var(--grey-light); }
+.grey-mid   { color: var(--grey-mid); }
+.grey-dark  { color: var(--grey-dark); }
+.slate      { color: var(--slate); }
+.slateblue  { color: var(--slateblue); }
+
+/* Optional background helpers */
+.bg-red-pink  { background-color: color-mix(in srgb, var(--red-pink) 15%, transparent); }
+.bg-turquoise { background-color: color-mix(in srgb, var(--turquoise) 15%, transparent); }
+.bg-orange    { background-color: color-mix(in srgb, var(--orange) 15%, transparent); }
+
+.smaller { font-size: 0.85em; }
+.smallest { font-size: 0.75em; }
+.footnote { font-size: 0.7em; opacity: 0.9; margin-top: 1.5em; }
+
+/* Vertical centering only (no horizontal centering) */
+.vcenter {
+  display: flex;
+  align-items: center;   /* vertical centering */
+  height: 70%;           /* space below the title */
+}
+
+.center { text-align: center; }
+
+.big {
+  font-size: 1.3em;
+}
+
+.bigger {
+  font-size: 1.6em;
+}
+
+.huge {
+  font-size: 2em;
+}
+
+.big-list li {
+  font-size: 1.2em;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", "Courier New", monospace;
+}
+
+/* reduce spacing */
+p { margin: 0.25em 0; }
+li { margin-bottom: 0.15em; }
+h2, h3 { margin-bottom: 0.3em; }
+
+
+.callout {
+  margin: 0.5em 0;
+  padding: 0.5em;
+}
+
+

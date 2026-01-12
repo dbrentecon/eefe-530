@@ -1,0 +1,48 @@
+/* Minimal styling for lecture slides (adapt as desired) */
+
+/* =========================
+   Custom color palette
+   ========================= */
+.css-proof { outline: 6px solid red !important; }
+
+:root{
+  --red-pink:   #e64173;
+  --turquoise:  #20B2AA;
+  --orange:     #FFA500;
+  --red-main:   #fb6107;   /* avoid clashing with existing .red */
+  --blue-main:  #254BE1;
+  --dblue-main: #0073e6;
+  --green:      #8bb174;
+  --grey-light: grey70;
+  --grey-mid:   grey50;
+  --grey-dark:  grey20;
+  --slate:      #314f4f;
+  --slateblue:  #6A5ACD;
+}
+
+/* =========================
+   Text color utilities
+   Use in .qmd as: [text]{.red-pink}
+   ========================= */
+
+.red-pink   { color: var(--red-pink); }
+.turquoise  { color: var(--turquoise); }
+.orange     { color: var(--orange); }
+.red-main   { color: var(--red-main); }
+.blue-main  { color: var(--blue-main); }
+.dblue-main { color: var(--dblue-main); }
+.green      { color: var(--green); }
+.grey-light { color: var(--grey-light); }
+.grey-mid   { color: var(--grey-mid); }
+.grey-dark  { color: var(--grey-dark); }
+.slate      { color: var(--slate); }
+.slateblue  { color: var(--slateblue); }
+
+/* Optional background helpers */
+.bg-red-pink  { background-color: color-mix(in srgb, var(--red-pink) 15%, transparent); }
+.bg-turquoise { background-color: color-mix(in srgb, var(--turquoise) 15%, transparent); }
+.bg-orange    { background-color: color-mix(in srgb, var(--orange) 15%, transparent); }
+
+.smaller { font-size: 0.85em; }
+.smallest { font-size: 0.75em; }
+.footnote { font-size: 0.7em; opacity: 0.9; margin-top: 1.5em; }
