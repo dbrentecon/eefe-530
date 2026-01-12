@@ -1,3 +1,3 @@
 # Syllabus
 
-Official course syllabus.
+Check Canvas for updates and announcements.
