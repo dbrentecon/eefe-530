@@ -2,6 +2,7 @@
 title: "Lecture 01: Intro"
 subtitle: "EEFE 530"
 author: "Daniel Brent"
+
 format:
   revealjs:
     theme:
@@ -9,18 +10,21 @@ format:
       - ../theme/psu.scss
     slide-number: true
     incremental: false
+    hash: false
+    history: false
+    embed-resources: true
     menu:
       side: right
       width: wide
       titleSelector: "h1, h2"
       hideMissingTitles: true
       useTextContentForMissingTitles: false
+
 execute:
   echo: true
   freeze: auto
   warning: false
   message: false
-
 ---
 
 

@@ -9,6 +9,9 @@ format:
       - ../theme/psu.scss
     slide-number: true
     incremental: false
+    hash: false
+    history: false
+    embed-resources: true
     menu:
       side: right
       width: wide
