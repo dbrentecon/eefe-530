@@ -1,6 +1,6 @@
 ---
 title: "EEFE 530- Problem Set 2"
-subtitle: "Causal DAGs: Due 2/1/2026"
+subtitle: "Causal DAGs: Due 2/8/2026"
 author: "YOUR NAME"
 date: "DATE SUBMITTED"
 format:
