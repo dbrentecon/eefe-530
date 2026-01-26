@@ -230,3 +230,109 @@ h2, h3 { margin-bottom: 0.3em; }
 }
 
 
+@media print {
+
+  /* Let Reveal build the print layout */
+  html, body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .reveal, .reveal .slides {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  /* Ensure slides are actually paintable */
+  .reveal .slides section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    transform: none !important;
+    page-break-after: always; /* one slide per page */
+  }
+
+  /* Disable the fixed viewport pseudo-background in print */
+  .reveal .slides section.slide.level1::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* Recreate your divider look using the section background */
+  .reveal .slides section.slide.level1 {
+    background: $psu-navy !important;
+    color: $psu-white !important;
+  }
+
+  .reveal .slides section.slide.level1 h1,
+  .reveal .slides section.slide.level1 h2,
+  .reveal .slides section.slide.level1 h3 {
+    color: $psu-white !important;
+  }
+
+  /* Print backgrounds faithfully */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* =========================================================
+   Reveal "print-pdf" mode fixes (applies in print preview mode)
+   ========================================================= */
+
+html.print-pdf,
+body.print-pdf {
+  /* Reveal stacks slides vertically in print mode; overflow hidden blanks it */
+  overflow: visible !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Neutralize the :has(...) full-bleed hack during print mode */
+html.print-pdf:has(.reveal .slides section.slide.level1.present),
+body.print-pdf:has(.reveal .slides section.slide.level1.present) {
+  overflow: visible !important;
+}
+
+/* Ensure Reveal containers don’t clip the stacked print layout */
+body.print-pdf .reveal,
+body.print-pdf .reveal .slides {
+  overflow: visible !important;
+  height: auto !important;
+  transform: none !important;
+}
+
+/* Force slides to be paintable and not transformed away */
+body.print-pdf .reveal .slides section {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  transform: none !important;
+}
+
+/* Critical: fixed 100vw/100vh backgrounds break print stacking.
+   Convert your divider background to absolute-per-slide in print mode. */
+body.print-pdf .reveal .slides section.slide.level1::before {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Keep PSU navy divider look in print mode */
+body.print-pdf .reveal .slides section.slide.level1 {
+  background: $psu-navy !important;
+  color: $psu-white !important;
+}
+
+/* Improve background printing fidelity */
+body.print-pdf * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}

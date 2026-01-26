@@ -1,0 +1,359 @@
+---
+title: "EEFE 530- Problem Set 2"
+subtitle: "Causal DAGs: Due 2/1/2026"
+author: "YOUR NAME"
+date: "DATE SUBMITTED"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-tools: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Overview
+
+This assignment has **two parts**:
+
+1. **Research abstract + DAG (your proposed study)**  
+2. **Published paper DAG (existing study in a general-interest or top field journal)**
+
+For each part, you will:
+
+- State a **causal research question**
+- Provide a **DAG** (rendered in R or another tool)
+- **List all paths** between treatment and outcome (distinguish causal vs. non-causal/backdoor, collider, etc.)
+- **List all assumptions** implied by the DAG and identification claim
+- Identify **two plausible threats** to identification and provide **one diagnostic per threat**
+
+## Submission
+
+Submit a single rendered HTML (or PDF) plus your source `.qmd`.
+
+- If using GitHub Classroom: push your repo with the rendered output in the root 
+- Include any external files (figures, BibTeX) needed to render.
+
+---
+
+## Setup (R)
+
+::: callout-note
+You may use any software for the DAG (R, Stata, Python, draw.io, etc.). If you use non-R software, still include an exported image in your repo (e.g., `images/dag_part1.png`) and reference it below.
+:::
+
+```{r}
+#| label: setup
+#| include: true
+# Install if needed:
+# install.packages(c("dagitty", "ggdag", "ggplot2", "dplyr"))
+
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+library(dplyr)
+```
+
+---
+
+#  Research Abstract + DAG (Your Study)
+
+## Research abstract 
+
+Write a concise abstract (150–250 words) that includes:
+
+- Context / motivation (2–3 sentences)
+- **Causal research question** (explicitly stated)
+- Treatment/exposure definition (**T**)
+- Outcome definition (**Y**)
+- Target population / setting
+- Proposed identification logic (high level)
+- Key threats (1–2 sentences)
+
+**Abstract text:**
+
+> *Paste your abstract here.*
+
+---
+
+## Variables and definitions
+
+Create a table that defines every node in your DAG.
+
+```{r}
+#| label: part1-variable-table
+part1_vars <- tibble::tribble(
+  ~node, ~name, ~type, ~measurement, ~timing,
+  "T", "Treatment / exposure", "binary/continuous", "how measured", "pre/post",
+  "Y", "Outcome", "binary/continuous", "how measured", "post",
+  "C1", "Confounder 1", "confounder", "how measured", "pre",
+  "M", "Mediator (if any)", "mediator", "how measured", "post"
+)
+
+part1_vars
+```
+
+---
+
+## DAG
+
+### Option A: DAG in dagitty (recommended)
+
+Replace the DAG below with your structure.
+
+```{r}
+#| label: part1-dag
+# Example skeleton — replace with your nodes/arrows
+dag_part1 <- dagitty("
+dag {
+
+  T [exposure]
+  Y [outcome]
+
+  C1
+  C2
+  M
+
+  C1 -> T
+  C1 -> Y
+  C2 -> T
+  C2 -> Y
+  T  -> M
+  M  -> Y
+}
+")
+
+dag_part1
+```
+
+```{r}
+#| label: part1-dag-plot
+# You may change layout = "fr" to "circle", "tree", etc.
+ggdag(dag_part1, layout = "fr") +
+  theme_dag()
+```
+
+### Option B: External DAG image
+
+If you used external software, place the image in your repo and include it:
+
+```markdown
+![](images/dag_part1.png){fig-alt="Causal DAG for Part 1." width=80%}
+```
+
+---
+
+## List all paths between T and Y
+
+List **all distinct paths** from **T** to **Y**. For each path, specify:
+
+- Path sequence (e.g., `T <- C1 -> Y`)
+- Type: causal / backdoor / collider path / other
+- Status under your proposed conditioning set (open/closed)
+
+### Path inventory (write-up)
+
+- Path 1:  
+- Path 2:  
+- Path 3:  
+- …
+
+### (Optional) Use dagitty to enumerate implied independencies / adjustment sets
+
+```{r}
+#| label: part1-adjustment-sets
+adjustmentSets(dag_part1, exposure = "T", outcome = "Y")
+```
+
+```{r}
+#| label: part1-implied-cis
+impliedConditionalIndependencies(dag_part1)
+```
+
+---
+
+## Identification assumptions
+
+List assumptions needed for your causal claim. Include both:
+
+1. **DAG/structural assumptions** (arrows absent/present, no omitted common causes, correct time ordering)
+2. **Estimation/data assumptions** (measurement validity, overlap/positivity, SUTVA/no interference, etc.)
+
+### Assumptions (bulleted)
+
+- A1:  
+- A2:  
+- A3:  
+- …
+
+---
+
+## Two plausible threats + one diagnostic per threat
+
+Provide **two realistic threats** to identification. For each threat:
+
+- Explain how it violates your DAG/assumptions
+- Describe the bias mechanism (which path opens / which node is misclassified)
+- Provide **one diagnostic** (placebo test, balance check, sensitivity analysis, negative control, bounding exercise, etc.)
+
+### Threat 1
+
+- **Threat:**  
+- **Bias mechanism:**  
+- **Diagnostic:**  
+
+### Threat 2
+
+- **Threat:**  
+- **Bias mechanism:**  
+- **Diagnostic:**  
+
+---
+
+# Published Paper DAG
+
+## Paper selection (citation + why it qualifies)
+
+Choose a paper published in a **general-interest journal** or **top field journal** (e.g., AER, QJE, JPE, REStud, AEJ, JEEM, JAERE, etc.).
+
+Your identification strategy **cannot** be:
+- Difference-in-differences (including event studies / staggered DID)
+- Randomized experiment (field/lab/natural randomization)
+- Regression discontinuity
+- Synthetic control / generalized synthetic control
+
+
+Acceptable examples (non-exhaustive): instrumental variables, selection-on-observables with strong design, regression with control function, structural model, front-door-type arguments, panel FE without DID logic, etc. (You must clearly justify.)
+
+### Citation (one of: APA, Chicago, or BibTeX)
+
+> *Paste citation here (with link to paper).*
+
+### Identification strategy (one paragraph)
+
+- What is the treatment/exposure (**T**) and outcome (**Y**)?
+- What is the primary source of identification?
+- Why is it **not** DID/RCT/RD/SC?
+
+---
+
+## Variables and definitions
+
+```{r}
+#| label: part2-variable-table
+part2_vars <- tibble::tribble(
+  ~node, ~name, ~type, ~measurement, ~timing, ~in_paper,
+  "T", "Treatment / exposure", "binary/continuous", "how measured", "pre/post", "Yes",
+  "Y", "Outcome", "binary/continuous", "how measured", "post", "Yes",
+  "Z", "Instrument (if any)", "instrument", "how measured", "pre", "Yes",
+  "U", "Unobserved confounder", "latent", "not observed", "pre", "No"
+)
+
+part2_vars
+```
+
+---
+
+## DAG
+
+### dagitty version
+
+```{r}
+#| label: part2-dag
+# Replace with the paper's assumed causal structure
+dag_part2 <- dagitty("
+dag {
+  T [exposure]
+  Y [outcome]
+
+  Z
+  U
+  X1
+  X2
+
+  Z -> T
+  T -> Y
+  U -> T
+  U -> Y
+  X1 -> T
+  X1 -> Y
+}
+")
+
+dag_part2
+```
+
+```{r}
+#| label: part2-dag-plot
+ggdag(dag_part2, layout = "fr") +
+  theme_dag()
+```
+
+---
+
+## List all paths between T and Y
+
+### Path inventory (write-up)
+
+- Path 1:  
+- Path 2:  
+- Path 3:  
+- …
+
+If the paper uses **IV**, explicitly identify:
+- All backdoor paths blocked by the instrument logic (or not relevant)
+- Exclusion restriction representation (which arrow is assumed absent)
+- Any potential violations (e.g., `Z -> Y` direct, or `Z <- U -> Y`)
+
+---
+
+## Identification assumptions (paper-specific)
+
+List the assumptions required for the paper’s identification strategy. Examples:
+
+- Selection-on-observables: conditional ignorability given X, correct functional form, overlap
+- IV: relevance, exclusion restriction, monotonicity (if LATE), independence
+- Control function: correct first stage and error structure
+- Structural: correct model specification, equilibrium conditions, etc.
+
+### Assumptions (bulleted)
+
+- A1:  
+- A2:  
+- A3:  
+- …
+
+---
+
+## Two plausible threats + one diagnostic per threat
+
+### Threat 1
+
+- **Threat:**  
+- **Bias mechanism:**  
+- **Diagnostic:**  
+
+### Threat 2
+
+- **Threat:**  
+- **Bias mechanism:**  
+- **Diagnostic:**  
+
+---
+
+# Final checklist
+
+Before submitting, confirm you included:
+
+- [ ] Part 1 abstract with explicit causal question and estimand  
+- [ ] Part 1 DAG (rendered)  
+- [ ] Part 1 path list + assumptions + 2 threats + diagnostics  
+- [ ] Part 2 paper citation and identification description (not DID/RCT/RD/SC)  
+- [ ] Part 2 DAG (rendered)  
+- [ ] Part 2 path list + assumptions + 2 threats + diagnostics  
+- [ ] Repo renders without errors  
+

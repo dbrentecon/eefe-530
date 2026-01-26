@@ -89,3 +89,13 @@ h2, h3 { margin-bottom: 0.3em; }
   padding: 0.5em;
 }
 
+.quarto-title-meta .author::before {
+  content: "Course: ";
+  font-weight: 600;
+}
+
+.quarto-title-meta .date::before {
+  content: "Due Date: ";
+  font-weight: 600;
+}
+

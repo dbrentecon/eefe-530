@@ -4,9 +4,8 @@ subtitle: "EEFE 530"
 author: "Daniel Brent"
 format:
   revealjs:
-    theme:
-      - default
-      - ../theme/psu.scss
+    css: ../theme/my-css.css
+    theme: [default, ../theme/_extensions/grantmcdermott/clean/clean.scss]
     slide-number: true
     incremental: false
     hash: false
@@ -37,7 +36,7 @@ p_load(
   data.table, dplyr, estimatr,
   lubridate, knitr, parallel,
   lfe,fixest, etable,
-  here, magrittr
+  here, magrittr, formatR
 )
 # Define pink color
 red_pink <- "#e64173"
@@ -278,12 +277,12 @@ I always just use all the default prompts for the installation.
 
 ## Basic structure
 
-:::{.smaller}
+:::{.smallest}
 Okay - back to [R]{.mono}. There are a few basics to keep in mind with [R]{.mono}:
 
 ::: {.fragment}
 [1\. Everything is an __object__.]{.more-left}
-:::
+:::  
 
 ::: {.fragment}
 [`foo`]{.less-right}
@@ -325,9 +324,9 @@ Okay - back to [R]{.mono}. There are a few basics to keep in mind with [R]{.mono
 6\. [R]{.more-left .mono} has its __quirks__.
 :::
 
-::: {.fragment}
-[`NA; error; warning`]{.less-right}
-:::
+<!-- ::: {.fragment} -->
+<!-- [`NA; error; warning`]{.less-right} -->
+<!-- ::: -->
 
 :::
 
@@ -900,7 +899,7 @@ Now we'll introduce some basic regression functionality in [R]{.mono}
 - Let's start with a hedonic regression on the impact of nice views on housing prices in Seattle
 - In our dataset we have a couple variables for mountain and water views
 
-:::{.smaller}
+:::{.smallest}
 ```{r}
 rain.sales[,list(sound,lake.wash,lake.sam,rainier,cascades,territorial)]
 ```

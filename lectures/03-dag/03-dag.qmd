@@ -1,0 +1,966 @@
+---
+title: "Lecture 03: Causal Diagrams"
+subtitle: "EEFE 530"
+author: "Daniel Brent"
+format:
+  revealjs:
+    css: ../theme/my-css.css
+    theme: [default, ../theme/_extensions/grantmcdermott/clean/clean.scss]
+    slide-number: true
+    incremental: false
+    hash: false
+    history: false
+    embed-resources: true
+    menu:
+      side: right
+      width: wide
+      titleSelector: "h1, h2"
+      hideMissingTitles: true
+      useTextContentForMissingTitles: false
+execute:
+  echo: true
+  freeze: auto
+  warning: false
+  message: false
+---
+
+```{r}
+# install.packages(c("dagitty","ggdag","tidyverse"))
+library(pacman)
+p_load(dagitty, ggdag, ggplot2, dplyr, tibble, grid)
+
+
+ggdag_eefe <- function(dag,
+                       layout      = "fr",
+                       label_mode  = c("inside", "outside", "name", "none"),
+                       label_size  = 4.8,
+                       node_size   = 12,
+                       edge_width  = 1.4,
+                       arrow_mm    = 6,
+                       edge_shrink = 0.10,    # shorten edges so arrowheads are visible
+                       obs_fill    = "black", # observed node fill
+                       lat_fill    = "gray90", # latent node fill (NEW: makes latent obvious)
+                       obs_outline = "black", # observed node outline
+                       lat_outline = "gray90",# latent node outline
+                       node_stroke = 1.1) {
+  
+  label_mode <- match.arg(label_mode)
+  
+  tidy_obj <- ggdag::tidy_dagitty(dag, layout = layout)
+  td <- tidy_obj$data
+  
+  # Nodes = unique coordinates
+  nodes <- td %>% dplyr::distinct(name, x, y)
+  
+  # Edges = rows with a destination
+  edges <- td %>% dplyr::filter(!is.na(to))
+  
+  # ---- Parse latent node names from tidy_dagitty()$dag text (version-robust) ----
+  .get_latent_names <- function(tidy_obj) {
+    dag_txt <- paste(capture.output(tidy_obj$dag), collapse = "\n")
+    lines <- strsplit(dag_txt, "\n", fixed = TRUE)[[1]]
+    latent_lines <- grep("\\[.*\\blatent\\b.*\\]", lines, value = TRUE)
+    latent_names <- sub("^\\s*([A-Za-z0-9_.]+)\\s*\\[.*$", "\\1", latent_lines)
+    unique(trimws(latent_names))
+  }
+  
+  # ---- Parse node labels from tidy_dagitty()$dag text ----
+  .get_label_df <- function(tidy_obj) {
+    dag_txt <- paste(capture.output(tidy_obj$dag), collapse = "\n")
+    lines <- strsplit(dag_txt, "\n", fixed = TRUE)[[1]]
+    
+    node_lines <- grep("^\\s*[A-Za-z0-9_.]+\\s*\\[", lines, value = TRUE)
+    
+    nm <- sub("^\\s*([A-Za-z0-9_.]+)\\s*\\[.*$", "\\1", node_lines)
+    
+    lab <- ifelse(
+      grepl('label="', node_lines, fixed = TRUE),
+      sub('^.*label="([^"]+)".*$', "\\1", node_lines),
+      NA_character_
+    )
+    
+    tibble::tibble(name = trimws(nm), label = lab)
+  }
+  
+  latent_names <- .get_latent_names(tidy_obj)
+  label_df     <- .get_label_df(tidy_obj)
+  
+  nodes <- nodes %>%
+    dplyr::mutate(latent = name %in% latent_names) %>%
+    dplyr::left_join(label_df, by = "name") %>%
+    dplyr::mutate(
+      label = ifelse(is.na(label) | label == "", name, label),
+      # NEW: explicit aesthetics to make latent obvious
+      node_fill    = ifelse(latent, lat_fill, obs_fill),
+      node_outline = ifelse(latent, lat_outline, obs_outline),
+      text_col     = ifelse(latent, "black", "white")
+    )
+  
+  # ---- Shorten edges so arrowheads don't overlap nodes ----
+  edges <- edges %>%
+    dplyr::mutate(
+      dx = xend - x,
+      dy = yend - y,
+      d  = sqrt(dx^2 + dy^2),
+      d  = ifelse(d == 0, NA_real_, d),
+      
+      x_new    = x    + edge_shrink * dx / d,
+      y_new    = y    + edge_shrink * dy / d,
+      xend_new = xend - edge_shrink * dx / d,
+      yend_new = yend - edge_shrink * dy / d
+    )
+  
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_segment(
+      data = edges,
+      ggplot2::aes(x = x_new, y = y_new, xend = xend_new, yend = yend_new),
+      linewidth = edge_width,
+      color = "black",
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(arrow_mm, "mm"), type = "closed")
+    ) +
+    ggplot2::geom_point(
+      data = nodes,
+      ggplot2::aes(x = x, y = y),
+      size = node_size,
+      shape = 21,
+      fill   = nodes$node_fill,
+      color  = nodes$node_outline,
+      stroke = node_stroke
+    ) +
+    ggplot2::coord_equal() +
+    ggplot2::theme_void()
+  
+  # ---- Labels ----
+  if (label_mode == "inside") {
+    p <- p + ggplot2::geom_text(
+      data = nodes,
+      ggplot2::aes(x = x, y = y, label = label),
+      color = nodes$text_col,
+      fontface = "bold",
+      size = label_size
+    )
+  } else if (label_mode == "name") {
+    p <- p + ggplot2::geom_text(
+      data = nodes,
+      ggplot2::aes(x = x, y = y, label = name),
+      color = nodes$text_col,
+      fontface = "bold",
+      size = label_size
+    )
+  } else if (label_mode == "outside") {
+    p <- p + ggplot2::geom_text(
+      data = nodes,
+      ggplot2::aes(x = x, y = y, label = label),
+      color = "black",
+      fontface = "bold",
+      size = label_size,
+      nudge_y = 0.1
+    )
+  }
+  
+  p
+}
+
+
+
+```
+
+## Roadmap
+
+- Why causal diagrams (directed acyclic graphs = DAGs) matter for applied work
+- How to *draw* credible DAGs from a research question
+- Use DAGs to clarify identification strategy and assumptions
+- How to read paths: back doors, front doors, colliders, and adjustment
+- How to isolate front doors
+
+::: fragment
+These slides are based on four chapters on causal diagrams from *The Effect* (Ch. 6–9).
+:::
+
+---
+
+## Learning objectives
+
+By the end, you should be able to:
+
+- Translate a causal question into a DAG (and defend the assumptions)
+- Identify confounding, mediation, and collider bias on a DAG
+- Use back-door criteria to propose an adjustment set
+- Recognize settings where front-door strategies may be useful
+
+---
+
+## Packages and conventions
+
+We’ll use `dagitty` for DAG logic and `ggdag` for plotting.
+
+```{r}
+# install.packages(c("dagitty","ggdag","tidyverse"))
+library(dagitty)
+library(ggdag)
+```
+
+Notation:
+
+- Treatment: **T**
+- Outcome: **Y**
+- Confounder: **C**
+- Mediator: **M**
+- Unobserved: nodes labeled with `latent = TRUE` in `dagitty`
+  - I haven't gotten all the `dagitty` features to work precisely
+
+
+# Causal Diagrams
+## What is a DAG?
+### Causality as intervention
+
+A causal statement is about what changes under an intervention:
+
+- “Increasing **T** changes the distribution of **Y**.”
+
+Applied framing (energy):
+
+- **T:** adoption of time-of-use (TOU) electricity pricing  
+- **Y:** peak-period kWh usage
+
+We are not asking: “Are TOU customers different?”  
+
+We are asking: “What would peak usage be *if the same customers* faced TOU?”
+
+
+## Causal vs. descriptive language
+
+In applied papers and news media, watch for “weasel words”:
+
+- “linked to,” “associated with,” “predicts,” “related to”
+
+Example (environment):
+
+- “Counties with more wind farms have lower emissions” (descriptive)
+- “Building wind farms reduces emissions” (causal)
+
+When you read: translate to a DAG.
+
+## Causation vs. Correlation in Media
+
+### Wall Street Journal Examples
+
+- **“LUV Your Stock: Study Shows That Ticker Symbols Matter”** — [Wall Street Journal](https://www.wsj.com/articles/luv-your-stock-study-shows-that-ticker-symbols-matter-1476065160)
+  - Headline suggests **symbols cause investor behavior**, but study finds an association between symbol features and trading metrics.
+
+- **“It’s Easier to Cheat When You Can Blame AI”** — [WSJ](https://www.wsj.com/tech/ai/ai-cheating-ethics-97fb7b12)
+  - **“Study finds”** language implies behavioral cause–effect, though underlying research is based on descriptive survey data.
+
+--- 
+
+### New York Times
+
+- **"Is It OK to Use Your Phone on the Toilet?"** — [New York Times](https://www.nytimes.com/2025/09/30/well/phone-use-toilet-hemorrhoids-constipation.html)
+  - Phrasing **“linked to… study finds”** suggests a causal interpretation between smartphone use and hemorrhoids, though the research is observational/descriptive.
+
+- **“Wildfire Smoke Will Kill Thousands More by 2050, Study Finds”** — [New York Times](https://www.nytimes.com/2025/09/18/climate/wildfire-smoke-health-deaths.html)
+  - Headlines like this imply a **future causal outcome** (“will kill thousands more”), but the projection is model-based and depends on assumptions not  causal evidence
+
+---
+
+### Penn State News 
+
+- [Deaf, hard-of-hearing children’s adversity influences adult health, study finds](https://www.psu.edu/news/brandywine/story/deaf-hard-hearing-childrens-adversity-influences-adult-health-study-finds)
+  - *Language may imply causal influence; the study reports correlations from survey data.* 
+
+- [Study finds high levels of racial segregation in early childhood classrooms](https://ed.psu.edu/news/study-finds-high-levels-racial-segregation-early-childhood-classrooms)
+  - *Documenting segregation prevalence; causal implications require additional identification.* 
+
+- [High school experiences linked to midlife body weight](https://ssri.psu.edu/news/high-school-experiences-linked-midlife-body-weight)
+  - *“Linked to” reflects association, not causal effect.*
+
+
+## What a causal diagram encodes
+
+A DAG is a compact claim about the **data generating process (DGP)**:
+
+- Nodes = variables we could, in principle, measure
+- Directed arrows = direct causal relationships
+- No cycles (we’ll discuss later)
+
+DAGs are *models*—they are not “true/false,” but “more/less defensible.”
+
+---
+
+## Simple policy effect DAG
+
+Research question: effect of **SNAP** on **household fruit/veg intake**
+
+- **T:** exposure to SNAP (eligible + take-up)
+- **Y:** intake (servings/day)
+
+```{r}
+g1 <- dagitty("dag {
+  T [exposure]
+  Y [intake]
+  T -> Y}")
+# ggdag(g1, layout = "circle") + theme_dag()
+ggdag_eefe(g1, label_mode = "name")
+
+
+```
+
+## Adding confounding
+
+TOU adoption is often **opt-in**.
+
+- **C:** “energy preferences” (latent) affects adoption and use.
+
+```{r}
+g2 <- dagitty("dag {
+  T [TOU_adopt]
+  Y [peak_kwh]
+  C [latent]
+  C -> T
+  C -> Y
+  T -> Y}")
+ggdag_eefe(g2, label_mode = "name")
+```
+
+## The real world and omission
+
+A DAG is **not** “everything that matters.”
+
+Goal: include variables that create:
+- alternate explanations (back doors)
+- channels (front doors)
+- biases (colliders)
+
+Rule of thumb: if leaving something out changes your identification story, it belongs.
+
+## “Measurement” vs “causal” nodes
+
+Sometimes we draw:
+
+- **Constructs** (risk preferences, environmental attitudes)
+- **Measurements** (survey item, index, proxy)
+
+In DAGs, be explicit about whether a node is the construct or the proxy.
+
+Example: “Environmental concern” vs. “donated to conservation NGO.”
+
+- **Constructs** are usually unobserved/latent 
+- **Measurements** are observeable variables/data
+
+## Research questions in DAG terms
+
+A useful template:
+
+1. Define the intervention: what is “changing **T**”?
+2. Define the estimand: ATE? effect for compliers? short-run? (We'll get to these later)
+3. Translate to: **T → Y** (what blocks spurious paths?)
+
+Environmental example:
+
+- **T:** nitrate regulation stringency  
+- **Y:** drinking water nitrate concentration
+- Create a DAG for this
+
+## Moderators (heterogeneity)
+
+Moderators are variables that change the size/sign of a causal effect.
+
+Energy example:
+
+- TOU effect may differ by **AC ownership**.
+
+You can represent moderation by:
+
+- including the moderator and discussing heterogeneous effects
+- or splitting into subgroup DAGs (same structure, different parameters)
+
+# Drawing Causal Diagrams
+## From a question to a defensible DAG
+
+### Start with your idea of the world
+
+Causal diagrams formalize what you already believe.
+
+For applied economics, that belief comes from:
+
+- institutional detail (policy rules, market design)
+- engineering/biophysical constraints
+- prior evidence
+- field knowledge (how people respond)
+
+If you can’t defend arrows, you can’t defend identification.
+
+Good identification usually comes from deep knowledge of the rules/policies/incentives/norms of your setting.
+
+
+## Walk through the DGP
+
+Example: **Effect of irrigation efficiency upgrades on groundwater pumping**
+
+- **T:** upgrade to drip irrigation
+- **Y:** groundwater pumping (acre-feet)
+
+Candidate drivers:
+
+- **Crop mix** (perennials vs annuals)
+- **Water prices / pumping costs**
+- **Weather / drought**
+- **Farm management quality** (latent)
+- **Policy incentives / cost-share eligibility**
+
+## First-pass DAG (include the obvious)
+
+```{r}
+g3 <- dagitty("dag {
+  T [drip_upgrade]
+  Y [gw_pumping]
+  W [weather]
+  P [pumping_cost]
+  K [crop_mix]
+  Q [latent]
+  S [subsidy_elig]
+
+  W -> Y
+  P -> Y
+  K -> Y
+
+  Q -> T
+  Q -> K
+  Q -> Y
+
+  S -> T
+  S -> K
+
+  T -> K
+  T -> Y}")
+```
+
+---
+
+:::{.smaller}
+
+```{r}
+ggdag_eefe(g3)
+```
+:::
+
+---
+
+## Interpret the arrows (discipline-specific)
+
+- **T → Y:** efficiency changes marginal cost of water services; could reduce or increase pumping (rebound).
+- **Q (latent):** better managers adopt early and also pump differently.
+- **S → T:** cost-share programs increase adoption.
+- **S → K:** eligibility can alter crop choices (e.g., perennial conversion).
+
+This is the point where you should argue *mechanisms*.
+
+---
+
+## Simplify without losing the identification story
+
+Simplification strategies:
+
+- combine tightly related variables (e.g., “weather” not 10 climate measures)
+- omit variables that only sit on already-blocked paths
+- collapse multiple mediators into one “behavioral response” node
+
+But: never simplify away your *hard part* (unmeasured confounding, selection).
+
+## Avoiding cycles
+
+Economics is full of feedback:
+
+- prices affect adoption; adoption affects prices
+
+DAGs are acyclic, so choose a time ordering:
+
+- Use **lagged** versions (e.g., last year’s prices)
+- Use a snapshot causal question: “short-run effect holding market fixed”
+
+If feedback is central, consider dynamic models or sequential DAGs.
+
+## Getting comfortable with assumptions
+
+Two “honesty checks”:
+
+- **Missing arrow** is an assumption (“no direct effect”)
+- **Missing node** is an assumption (“doesn’t matter for identification”)
+
+Practice: pick one missing arrow in your DAG and write a defense:
+
+- institutional restriction, timing, physics, or strong prior evidence.
+
+# Causal Paths and Closing Back Doors
+
+## Paths explain correlations
+
+A **path** is any route from **T** to **Y** ignoring arrow direction.
+
+Why it matters:
+
+- every open back-door path is an alternate explanation
+- your job is to close the bad ones without closing the good ones
+
+## Finding all paths 
+
+Example: **effect of solar adoption on monthly electricity bills**
+
+- **T:** rooftop solar adoption
+- **Y:** bill amount
+- **C:** income
+- **R:** roof suitability
+
+```{r}
+g4 <- dagitty("dag {
+  T [solar_adopt]
+  Y [bill]
+  C [income]
+  R [roof_suit]
+
+  C -> T
+  C -> Y
+  R -> T
+  R -> Y
+  T -> Y}")
+```
+
+---
+
+```{r}
+ggdag_eefe(g4)
+
+```
+
+Paths from T to Y:
+
+- T → Y (front door)
+- T ← C → Y (back door)
+- T ← R → Y (back door)
+
+## Good paths vs bad paths 
+### Front vs. back doors
+
+- **Front door:** starts with an arrow out of **T**
+- **Back door:** starts with an arrow into **T**
+
+Back doors create confounding. Close them by conditioning on appropriate nodes.
+
+How do you "condition" in practice?
+
+---
+
+
+In the solar example, conditioning on {Income, Roof suitability} blocks both back doors.
+
+```{r}
+g4 <- dagitty("dag {
+  T [solar_adopt]
+  Y [bill]
+  C [income]
+  R [roof_suit]
+
+  C -> T
+  C -> Y
+  R -> T
+  R -> Y
+  T -> Y}")
+
+adjustmentSets(g4, exposure = "T", outcome = "Y")
+```
+
+## Colliders
+
+A **collider** is a variable that is **caused by two (or more) other variables**.
+
+In a causal diagram, it has **two arrows pointing into it**:
+
+X → C ← Y
+
+
+Here, **C is a collider** because it is a *common effect* of **X** and **Y**.
+
+X does not cause Y on this path and Y does not cause X: **The path is closed.**
+
+---
+
+### Key idea
+
+- Colliders are **effects**, not causes  
+- They arise when two processes jointly influence the same outcome  
+- Examples in applied economics include:
+  - Enforcement actions
+  - Selection into a program
+  - Observed participation or take-up
+  - Survey response or sample inclusion
+
+## Why a Collider Closes a Backdoor Path
+
+### Information flow in a DAG
+
+Paths in a DAG represent **potential channels of statistical association**.
+
+Whether a path is *open* or *closed* depends on the structure of the nodes along it.
+
+---
+
+### Collider rule
+
+A path that passes through a collider is **closed by default**.
+
+T → C ← U → Y
+
+- **C** is a collider on the path from **T** to **Y**
+- Because arrows point *into* **C**, information does **not flow through C**
+- The backdoor path from **T** to **Y** is therefore **blocked**
+
+---
+
+### Applied example (environment / energy)
+
+- **T:** emissions regulation stringency  
+- **Y:** respiratory health outcomes  
+- **C:** enforcement actions  
+- **U:** political or community pressure  
+
+Enforcement actions occur when **both** regulation is strict **and** pressure is high.
+
+Because enforcement is a collider:
+
+- regulation and pressure are **not associated through C**
+- the backdoor path is **closed**
+
+Write out the DAG and all the paths for this example.
+
+---
+
+### Takeaway
+
+> **Colliders block backdoor paths unless something is done to open them.**
+
+This is why simply identifying a backdoor path is not enough—  
+you must also understand **how it is blocked**.
+
+
+## Open and closed paths
+
+A path is **closed** if it includes:
+
+- a **non-collider** you condition on
+- or a **collider** you *do not* condition on (colliders block by default)
+
+A path is **open** if:
+
+- every collider is conditioned on (or has a conditioned descendant), and
+- no non-collider on the path is conditioned on.
+
+These rules drive common “bad control” mistakes in regressions.
+
+## Colliders and “Bad Controls” in Econometrics
+
+### Canonical example: education and wages
+
+
+- **T:** Education  
+- **Y:** Wages  
+- **A:** Ability (unobserved)  
+- **E:** Employment status  
+
+---
+
+### Canonical example: education and wages
+
+Economic structure:
+
+- Education → Wages
+- Ability → Wages
+
+- **Employment (E)** is a *collider*: it is a **joint outcome** of education and ability  
+- Conditioning on employment (or restricting to employed workers) is a **bad control**
+- This induces correlation between education and unobserved ability, biasing OLS
+
+> In econometric terms: conditioning on a collider creates **selection bias**
+
+---
+
+### Econometric takeaway
+
+> Variables that look like “controls” are often **outcomes of selection**.  
+>  
+> In DAG language: many bad controls are **colliders**.
+
+Education → Employment ← Ability
+
+:::{.fragment}
+
+What key assumption is necessary for identification in this setting even when 
+not controlling for Employment?
+
+:::
+
+## Collider Bias
+
+### Example: nutrition education and diet quality
+
+Suppose we want the causal effect of **nutrition education** on **diet quality**.
+
+- **T:** Nutrition education program  
+- **Y:** Diet quality (e.g., Healthy Eating Index)  
+- **U:** Health motivation (unobserved)  
+- **C:** Grocery shopping intensity (e.g., frequency of store visits)
+
+Economic structure:
+
+- Nutrition education → Diet quality
+- Health motivation → Diet quality
+- Nutrition education → Grocery shopping ← Health motivation
+
+---
+
+- **Grocery shopping intensity (C)** is a **collider**
+- It increases when:
+  - people receive nutrition education, **and**
+  - people are already highly health-motivated
+
+---
+
+### Where collider bias enters
+
+Researchers often:
+- control for grocery shopping behavior, or
+- restrict samples to “regular shoppers”
+
+But grocery shopping is **not a confounder**:
+
+- it is an **outcome of both treatment and unobserved motivation**
+
+Conditioning on it:
+
+- induces correlation between nutrition education and health motivation
+- biases the estimated effect of education on diet quality
+
+---
+
+### Econometric interpretation
+
+> Controlling for behavior that lies *downstream* of both treatment and preferences
+> converts unobserved heterogeneity into selection bias.
+
+
+> Behaviors that seem “mechanically related” to outcomes  
+> are often **colliders**, not controls.
+
+## Good vs. bad controls
+
+Bad controls often arise from:
+- post-treatment variables (mediators)
+- colliders (or their descendants)
+
+Before writing a regression, ask:
+
+- Is this control a cause of **T**? (potential confounder)
+- Is it caused by **T**? (mediator / post-treatment)
+- Is it a collider on some back door?
+
+---
+
+## Mediation and post-treatment controls
+
+Research question: effect of **emissions enforcement** on **asthma ED visits**
+
+- **T:** enforcement intensity
+- **M:** ambient PM2.5
+- **Y:** asthma visits
+- **C:** neighborhood SES (confounds T and Y)
+
+---
+
+```{r}
+g6 <- dagitty("dag {
+  T [enforcement]
+  M [pm25]
+  Y [asthma_ed]
+  C [ses]
+
+  C -> T
+  C -> Y
+  C -> M
+
+  T -> M
+  M -> Y
+  T -> Y}")
+ggdag_eefe(g6, layout = "fr") + theme_dag()
+```
+
+Controlling for **M** gives a *direct effect* of enforcement not mediated by ambient PM2.5, not the total effect.
+
+---
+
+## Using paths to test your diagram (placebo logic)
+
+DAGs imply **conditional independence**.
+
+Example idea:
+
+- If your DAG claims `Roof suitability ⟂ Soda purchases | Income`, you can test it.
+
+Caveat:
+
+- failures may mean the DAG is wrong, or measurement error, or sample selection
+- successes do not prove the DAG is correct
+
+Still useful as a diagnostic and for placebo outcomes/exposures.
+
+
+## Summary: back-door identification workflow
+
+1. Draw DAG for the question and context
+2. List paths from **T** to **Y**
+3. Classify: front doors vs back doors
+4. Propose adjustment set that blocks all back doors (avoid colliders/post-treatment)
+5. Map to estimator (regression, matching, weighting, etc.)
+
+
+# Finding Front Doors
+## Isolate “good variation” or estimate arrows
+
+### Why “close all back doors” can fail
+
+In applied micro, some confounders are:
+
+- unmeasured (preferences, ability, risk tolerance)
+- poorly measured (latent constructs)
+- endogenous proxies
+
+Front-door thinking asks:
+
+- Can we isolate variation in **T** that avoids key back doors?
+- Or can we estimate pieces of the causal chain credibly?
+
+## Isolating “cleaner” variation
+
+Example: effect of **electricity price** on **consumption**
+
+- **T:** retail electricity price
+- **Y:** household kWh
+
+Challenge: price is endogenous to demand and policy.
+
+“Front-door” design:
+
+- isolate price shocks from **fuel cost pass-through** or **regulated tariff formula**
+- focus on within-utility, time variation driven by exogenous input costs
+
+DAG intuition: use only the portion of **T** driven by a node with no back door to **Y**.
+
+## “What the world can do for us”: design strategies
+
+Common ways to isolate front doors:
+
+- randomized encouragement / audit assignment
+- rule-based assignment (eligibility cutoffs, lotteries)
+- plausibly exogenous shocks (weather for wind generation; disasters; plant outages)
+- institutional formulas (tariff pass-through; cap-and-trade allocations)
+
+Key: argue why the source of variation blocks the problematic back doors.
+
+
+## Front-door method
+
+Suppose we want the effect of **diesel generator use** (T) on **asthma visits** (Y),
+but location and behavior create unobserved confounding.
+
+We observe a mediator:
+
+- **M:** near-home PM2.5 (from monitors / low-cost sensors)
+
+Front-door conditions:
+
+1. All causal influence of T on Y goes through M (T → M → Y)
+2. No unblocked back door from T to M
+3. No unblocked back door from M to Y once conditioning on T
+
+---
+
+## A front-door-style DAG (illustrative)
+
+```{r}
+g7 <- dagitty("dag {
+  T [diesel_use]
+  M [pm25_near]
+  Y [asthma_ed]
+  U [latent]
+
+  T -> M
+  M -> Y
+
+  U -> T
+  U -> Y
+}")
+ggdag_eefe(g7)
+```
+
+Interpretation: we can’t close U by controls, but we may be able to identify via M if conditions hold.
+
+## Computing front-door quantities (mechanics)
+
+Even when the *total* effect T → Y is confounded, we can estimate:
+
+- Effect of **T on M**
+- Effect of **M on Y**, controlling for **T**
+- Combine them to recover the overall effect (front-door formula)
+
+In practice, you still need:
+
+- rich measurement of M
+- strong assumptions about excluded pathways
+- careful robustness checks
+
+## What can go wrong (and how to diagnose)
+
+Common threats in front-door-style applications:
+
+- T affects Y through other channels not captured by M
+- unmeasured confounding between T and M (e.g., weather, site selection)
+- unmeasured confounding between M and Y (e.g., concurrent health shocks)
+- measurement error in M (attenuation / bias in nonlinear settings)
+
+Diagnostics:
+
+- multiple mediators / negative controls
+- sensitivity analysis
+- pre-trends / placebo timing tests when using shocks
+
+## Practical takeaway for applied papers
+
+Most applied economics work uses:
+
+- **back-door closure** (controls, FE, matching)
+- or **front-door isolation** via research design (DiD, IV, RD, lotteries)
+
+Use DAGs to:
+
+- justify the identifying variation
+- clarify what must be true for identification
+- communicate why certain controls are excluded (post-treatment/colliders)
+- anticipate critiques (and preempt them)
+
+## Wrap-up
+
+Problem Set 2:
+
+1. Research abstract + DAG
+  - Write out research abstract that includes a causal research question
+  - Write out a DAG (in R or other software)
+  - List all paths
+  - List all assumptions
+  - List two plausible threats and one diagnostic per threat
+1. Published paper DAG
+ - Do the same thing for a paper published in a general interest journal or top field journal
+ - Identification strategy **cannot** be:
+  - Difference-in-differences
+  - Randomized experiment
+  - Regression discontinuity
+  - Synthetic control
+

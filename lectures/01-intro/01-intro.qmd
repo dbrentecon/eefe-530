@@ -5,9 +5,8 @@ author: "Daniel Brent"
 
 format:
   revealjs:
-    theme:
-      - default
-      - ../theme/psu.scss
+    css: ../theme/my-css.css
+    theme: [default, ../theme/_extensions/grantmcdermott/clean/clean.scss]
     slide-number: true
     incremental: false
     hash: false
@@ -378,6 +377,7 @@ This will help you get comfortable Quarto, which we'll use for problem sets.
 
 ## Papers
 
+:::{.smaller}
 ::: {.fragment}
 **Overview papers (JEL/JEP)**
 
@@ -403,6 +403,7 @@ This will help you get comfortable Quarto, which we'll use for problem sets.
 - Marcus & Sant'Anna (2020) - Difference-in-difference
 - Burlig, Knittel, Rapson, Reguant & Wolfram, (2019) - Machine learning
 
+:::
 :::
 
 # Our class
