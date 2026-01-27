@@ -19,11 +19,9 @@ This repository is **private**. Only you and the instructional staff can view it
 
 You are expected to work within the following structure:
 
-.
-├── README.md # this file
-├── ps2.qmd # main analysis file (do not rename)
-└── submission.pdf OR submission.html # rendered output (required)
-
+- `README.md` — this file  
+- `ps2.qmd` — main analysis file (do not rename)  
+- `submission.pdf` **or** `submission.html` — rendered output (required)  
 
 Do **not** rename required files unless explicitly instructed.
 
