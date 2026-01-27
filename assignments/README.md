@@ -1,6 +1,6 @@
-# EEFE 530 — Assignment 01
+# EEFE 530 — Problem Set 2
 
-**Course:** EEFE 530 — Causal Inference  
+**Course:** EEFE 530 
 **Instructor:** Daniel Brent  
 **Due:** YYYY-MM-DD at HH:MM (local time)
 
@@ -21,9 +21,8 @@ You are expected to work within the following structure:
 
 .
 ├── README.md # this file
-├── hw01.qmd # main analysis file (do not rename)
-├── data/ # provided data (read-only)
-└── submission.pdf # rendered output (required)
+├── ps2.qmd # main analysis file (do not rename)
+└── submission.pdf OR submission.html # rendered output (required)
 
 
 Do **not** rename required files unless explicitly instructed.
@@ -32,12 +31,12 @@ Do **not** rename required files unless explicitly instructed.
 
 ## Instructions
 
-1. Open `hw01.qmd` in RStudio.
+1. Open `ps2.qmd` in RStudio.
 2. Complete all required sections.
 3. Run all code chunks successfully.
 4. Render the file to produce `submission.pdf`.
 
-Your final PDF must reflect your **final answers**.
+Your final html/PDF must reflect your **final answers**.
 
 ---
 
@@ -45,8 +44,8 @@ Your final PDF must reflect your **final answers**.
 
 A complete submission includes:
 
-- `hw01.qmd`
-- `submission.pdf`
+- `ps2.qmd`
+- `submission.pdf` OR `submission.html`
 - Any additional files explicitly required in the assignment
 
 Incomplete or unrendered submissions will receive a penalty.
