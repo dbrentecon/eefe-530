@@ -1,7 +1,7 @@
 # EEFE 530 — Problem Set 2 - Causal Diagrams
 
-**Course:** EEFE 530 
-**Instructor:** Daniel Brent  
+**Course:** EEFE 530  
+**Instructor:** Daniel Brent   
 **Due:** 02-08-2026 at 11:59 PM (local time)
 
 ---
