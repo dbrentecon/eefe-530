@@ -12,3 +12,7 @@
 # Rendered outputs (optional)
 *_cache/
 *_files/
+
+# Quarto freeze cache
+_freeze/
+lectures/_freeze
