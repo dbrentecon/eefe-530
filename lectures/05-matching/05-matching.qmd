@@ -1,0 +1,1980 @@
+---
+title: "Lecture 05: Matching"
+subtitle: "EEFE 530"
+author: "Daniel Brent"
+format:
+  revealjs:
+    css: ../theme/my-css.css
+    theme: [default, ../theme/_extensions/grantmcdermott/clean/clean.scss]
+    slide-number: true
+    incremental: false
+    hash: false
+    history: false
+    embed-resources: true
+    menu:
+      side: right
+      width: wide
+      titleSelector: "h1, h2"
+      hideMissingTitles: true
+      useTextContentForMissingTitles: false
+execute:
+  echo: true
+  freeze: auto
+  warning: false
+  message: false
+---
+
+```{r, setup, include = F}
+# devtools::install_github("dill/emoGG")
+library(pacman)
+p_load(
+  broom, tidyverse,
+  ggplot2, ggthemes, ggforce, ggridges,
+  latex2exp, viridis, extrafont, gridExtra,
+  kableExtra, snakecase, janitor,
+  data.table, dplyr,
+  lubridate, knitr,
+  estimatr, here, magrittr, stargazer,
+  Matching,MatchIt
+)
+# Define dblue color
+red_dblue <- "#006400"
+turquoise <- "#20B2AA"
+orange <- "#FFA500"
+red <- "#fb6107"
+blue <- "#3b3b9a"
+green <- "#8bb174"
+grey_light <- "grey70"
+grey_mid <- "grey50"
+grey_dark <- "grey20"
+dblue <- "#0073e6"
+slate <- "#314f4f"
+# Dark slate grey: #314f4f
+# Knitr options
+opts_chunk$set(
+  comment = "#>",
+  fig.align = "center",
+  fig.height = 7,
+  fig.width = 10.5,
+  warning = F,
+  message = F
+)
+opts_chunk$set(dev = "svg")
+options(device = function(file, width, height) {
+  svg(tempfile(), width = width, height = height)
+})
+options(crayon.enabled = F)
+options(knitr.table.format = "html")
+# A blank theme for ggplot
+theme_empty <- theme_bw() + theme(
+  line = element_blank(),
+  rect = element_blank(),
+  strip.text = element_blank(),
+  axis.text = element_blank(),
+  plot.title = element_blank(),
+  axis.title = element_blank(),
+  plot.margin = structure(c(0, 0, -0.5, -1), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_simple <- theme_bw() + theme(
+  line = element_blank(),
+  panel.grid = element_blank(),
+  rect = element_blank(),
+  strip.text = element_blank(),
+  axis.text.x = element_text(size = 18, family = "STIXGeneral"),
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank(),
+  plot.title = element_blank(),
+  axis.title = element_blank(),
+  # plot.margin = structure(c(0, 0, -1, -1), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes_math <- theme_void() + theme(
+  text = element_text(family = "MathJax_Math"),
+  axis.title = element_text(size = 22),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = "grey70",
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes_serif <- theme_void() + theme(
+  text = element_text(family = "MathJax_Main"),
+  axis.title = element_text(size = 22),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = "grey70",
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_axes <- theme_void() + theme(
+  text = element_text(family = "Fira Sans Book"),
+  axis.title = element_text(size = 18),
+  axis.title.x = element_text(hjust = .95, margin = margin(0.15, 0, 0, 0, unit = "lines")),
+  axis.title.y = element_text(vjust = .95, margin = margin(0, 0.15, 0, 0, unit = "lines")),
+  axis.line = element_line(
+    color = grey_light,
+    size = 0.25,
+    arrow = arrow(angle = 30, length = unit(0.15, "inches")
+  )),
+  plot.margin = structure(c(1, 0, 1, 0), unit = "lines", valid.unit = 3L, class = "unit"),
+  legend.position = "none"
+)
+theme_set(theme_gray(base_size = 20))
+# Column names for regression results
+reg_columns <- c("Term", "Est.", "S.E.", "t stat.", "p-Value")
+# Function for formatting p values
+format_pvi <- function(pv) {
+  return(ifelse(
+    pv < 0.0001,
+    "<0.0001",
+    round(pv, 4) %>% format(scientific = F)
+  ))
+}
+format_pv <- function(pvs) lapply(X = pvs, FUN = format_pvi) %>% unlist()
+# Tidy regression results table
+tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", highlight_bold = T, digits = c(NA, 3, 3, 2, 5), title = NULL) {
+  x %>%
+    tidy() %>%
+    select(1:5) %>%
+    mutate(
+      term = terms,
+      p.value = p.value %>% format_pv()
+    ) %>%
+    kable(
+      col.names = reg_columns,
+      escape = F,
+      digits = digits,
+      caption = title
+    ) %>%
+    kable_styling(font_size = 20) %>%
+    row_spec(1:nrow(tidy(x)), background = "white") %>%
+    row_spec(highlight_row, bold = highlight_bold, color = highlight_color)
+}
+```
+
+# Schedule
+
+## Roadmap
+
+Today’s lecture:
+
+- Review identification under selection on observables
+- Introduce matching as a way to construct counterfactuals
+- Discuss common matching estimators
+- Highlight the role of overlap and common support
+- Compare matching to regression adjustment
+
+## Learning Objectives
+
+By the end of this lecture, you should be able to:
+
+- Explain when selection on observables is a plausible assumption
+- Describe how matching constructs counterfactual outcomes
+- Distinguish between different matching estimators
+- Explain why common support is required for identification
+- Compare matching and regression as adjustment strategies
+
+
+## Upcoming
+- Problem Set 3 on matching
+- Instrumental variables
+- Difference-in-difference
+
+## Reading
+### Instrumental Variables 
+- [Mixtape Ch. 7]{.orange}
+- [Effect Ch. 19]{.dblue}
+- [*MHE* Ch. 4]{.red}
+
+# Regression
+## Regression
+Recall: Regression serves as the conditional expectation function (CEF) where: 
+
+:::{.smallest}
+$y_i = \text{X}_{i}'\beta + \epsilon_i$
+
+$\mathop{E}\left[ Y_i | X_i \right] = \text{X}_{i}'\beta$
+
+$\beta = \mathop{E}\left[ \text{X}_{i} \text{X}_{i}' \right]^{-1} \mathop{E}\left[ \text{X}_{i} \text{Y}_{i} \right]$
+
+In **simple linear regression** (an intercept and one regressor $x_i$),
+$$
+\begin{align}
+  \beta_1 &= \dfrac{\mathop{\text{Cov}} \left( \text{Y}_{i},\, x_i \right)}{\mathop{\text{Var}} \left( x_i \right)}
+  & \beta_0 = \mathop{E}\left[ \text{Y}_{i} \right] - \beta_1 \mathop{E}\left[ x_i \right]
+\end{align}
+$$
+:::
+
+::: {.fragment .smallest}
+For **multivariate regression**, the coefficient on the k^th^ regressor $x_{ki}$ is
+$$
+\begin{align}
+  \beta_k &= \dfrac{\mathop{\text{Cov}} \left( \text{Y}_{i},\, \widetilde{x}_{ki} \right)}{\mathop{\text{Var}} \left( \widetilde{x}_{ki} \right)}
+\end{align}
+$$
+where $\widetilde{x}_{ki}$ is the residual from a regression of $x_{ki}$ on all other covariates.
+:::
+
+## Regression
+Great! Now we have a conditional expectation of $Y_i$.
+
+::: {.fragment .smaller}
+...but we care about the interpretation of $\beta$.  When/how can we interpret $\beta$ as the *causal* effect of $X$ on $Y$?
+:::
+
+::: {.fragment .smaller}
+For traditional regression we need the **conditional independence assumption (CIA)**, also called *selection on observeables*.  
+:::
+
+::: {.fragment .smaller}
+**Q:** What does CIA mean in words?
+:::
+
+::: {.fragment .smaller}
+**A:** Conditional on some set of covariates $\text{X}_{i}$, selection bias disappears.
+:::
+
+::: {.fragment .smaller}
+**More formally** Conditional on $\text{X}_{i}$, potential outcomes $\left( \color{#0073e6}{\text{Y}_{0i}},\, \color{#0073e6}{\text{Y}_{1i}} \right)$ are independent of treatment status $\left( \color{#006400}{\text{D}_{i}} \right)$.
+
+$$
+\begin{align}
+  \def\ci{\perp\mkern-10mu\perp}
+  \left\{ \color{#0073e6}{\text{Y}_{0i}},\,\color{#0073e6}{\text{Y}_{1i}} \right\} \ci  \color{#006400}{\text{D}_{i}} | \text{X}_{i}
+\end{align}
+$$
+:::
+
+## Regression & CIA
+
+:::{.smaller}
+Let's formally link regression to the CIA.
+
+We have two linear, population models for the returns to schooling ( $\text{Y}_{i}$ is earnings and $\text{s}_i$ is years of schooling.)
+
+$$
+\begin{align}
+  \text{Y}_{i} &= \alpha + \rho \text{s}_i + \eta_i \tag{1}
+  \\
+  \text{Y}_{i} &= \alpha + \rho \text{s}_i + \text{X}_{i}'\gamma + \nu_i \tag{2}
+\end{align}
+$$
+:::
+
+::: {.fragment .smaller}
+$\widehat{\rho}$ in Model (1) does not have a causal interpretation if there is selection bias.<br>
+**Q:** What is the concern of selection bias for model (1) in words?
+:::
+
+::: {.fragment .smaller}
+**A:** People with more schooling would have earned more even if they hadn't gone to school (better ability, more motivation, etc.)
+:::
+
+::: {.fragment .smaller}
+For model $\left( 2 \right)$, we can interpret $\widehat{\rho}$ causally *if* $\thinspace\text{Y}_{i}\ci \text{s}_i\big|\text{X}_{i}\thinspace$ (CIA).
+:::
+
+::: {.fragment .smaller}
+In other words, the CIA says that our **observable vector** $\color{#0073e6}{\text{X}_{i}}$ **must explain all of correlation between** $\color{#0073e6}{s_i}$ **and** $\color{#0073e6}{\eta_i}$.
+:::
+
+## Omitted variable bias
+
+:::{.smaller}
+We can define the bias from *not* controlling for relevant (i.e. correlated with $Y$ **and** $X$) variables using the omitted-variable bias (OVB) formula.
+
+::: {.fragment}
+Let's assume we have data on all the factors that are correlated with both education and earnings.  We'll call this:  $\left( \text{A}_i \right)$ (family background, motivation, intelligence, etc.).
+
+$$
+\begin{align}
+  \text{Y}_{i} &= \alpha + \beta \text{s}_i + v_i \tag{1}
+  \\
+  \text{Y}_{i} &= \pi + \rho \text{s}_i + \text{A}_{i}'\gamma + e_i \tag{2}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+What happens if we can't get data on $\text{A}_i$ and opt for $\left( 1 \right)$?
+:::
+
+::: {.fragment}
+$$
+\begin{align}
+  \dfrac{\mathop{\text{Cov}} \left( \text{Y}_{i},\, \text{s}_i \right)}{\mathop{\text{Var}} \left( \text{s}_i \right)} = \rho + \gamma' \delta_{As}
+\end{align}
+$$
+
+where $\delta_{As}$ are coefficients from regressing $\text{A}_i$ on $\text{s}_i$.
+:::
+:::
+
+## Omitted variable bias
+### Interpretation
+
+Our two regressions
+
+$$
+\begin{align}
+  \text{Y}_{i} &= \alpha + \beta \text{s}_i + v_i \tag{1}
+  \\
+  \text{Y}_{i} &= \pi + \rho \text{s}_i + \text{A}_{i}'\gamma + e_i \tag{2}
+\end{align}
+$$
+
+will yield the same estimates for the returns to schooling
+
+$$
+\begin{align}
+  \dfrac{\mathop{\text{Cov}} \left( \text{Y}_{i},\, \text{s}_i \right)}{\mathop{\text{Var}} \left( \text{s}_i \right)} = \rho + \gamma' \delta_{As}
+\end{align}
+$$
+
+if (**a**) schooling is uncorrelated with ability $\left( \delta_{As} = 0 \right)$ *or*
+
+(**b**) ability is uncorrelated with earnings, conditional on schooling $\left( \gamma = 0 \right)$.
+
+Additionally, we can think about the direction of the bias from model (1) if we have can't get the data on $A_i$, but have some idea about the signs of $\delta_{As}$ and $\gamma$.
+
+# Matching
+## Goals
+
+Let's forget our little diversion about the regression, and come back to the fundamental problem of causal inference.  
+
+1. We don't observe both $Y_{1i}$ and $Y_{0i}$ simultaneously.  
+
+2. We may be worried about selection bias when comparing $E[Y_{1i}|D_i=1]$ with $E[Y_{0i}|D_i=0]$.  In particular we are worried $E[Y_{0i}|D_i=1] \neq E[Y_{0i}|D_i=0]$.
+
+::: {.fragment}
+Most empirical strategies aim to estimate $\text{Y}_{0i}$ for treated individuals—the unobservable counterfactual for the treatment group.
+
+**Matching estimators** are one way to generate these counterfactuals by matching treated observations with "similar" control observations.  Formally we still need to be able to make a CIA assumption.
+:::
+
+## Exact Matching
+
+If we believe the CIA $\left(\text{Y}_{1i},\, \text{Y}_{0i} \right)\ci \text{D}_{i}|\text{X}_{i}$, then we have a good counterfactual: $E[Y_{0i}|X_i,D_i=0] = E[Y_{0i}|X_i,D_i=1]$
+
+- We don't observe $E[Y_{0i}|X_i,D_i=1]$
+- We do observe $E[Y_{0i}|X_i,D_i=0]$
+
+We can estimate the ATT $(\tau_{ATT})$  by simply taking the difference of treated and control observations with the same $X$ values:
+
+$$
+\begin{align}
+  \tau_{ATT} &= E \{ E[Y_{1i}|X_i,D_i=1] - E[Y_{0i}|X_i,D_i=0]|D_i=1 \} \\
+               &= E[\tau_X|D_i=1]
+\end{align}
+$$
+where $\tau_x \equiv E[Y_{i}|X_i,D_i=1] - E[Y_{i}|X_i,D_i=0]$  
+
+This is just the mean difference by treatment status at each value of $X_i$.  
+
+## Exact Matching
+
+Exact matching has a relatively simple and elegant aggregation that can be thought of as weighting each of the mean differences within cells of covariate values.
+
+Recall that $\tau_{ATT} = E[\tau_X|D_i=1].$
+
+We can denote the mean difference at a particular value of $X_i = x$ as $\tau_x$, which allows us to define:
+
+$$
+\begin{align}
+  \tau_{ATT} = E[(Y_{1i}-Y_{0i})|D_i=1] = \sum_x \tau_x P(X_i = x|Di=1)
+\end{align}
+$$
+$P(X_i=x|D_i=1)$ is the probability mass function for $X_i$ given that $D_i=1$.  
+
+::: {.fragment .smaller}
+
+**In words:** we are weighting the mean differences by the characteristics of the treated population.
+:::
+
+## Exact Matching
+We can also generalize the treatment effect to the population by removing the conditioning on $D_i=1$.
+$$
+\begin{align}
+  \tau_{ATE} &= E \{ E[Y_{1i}|X_i,D_i=1] - E[Y_{0i}|X_i,D_i=0] \} \\
+               &= E[Y_{1i}-Y_0i)] = \sum_x \tau_x P(X_i = x)
+\end{align}
+$$
+
+**In words:** now we are weighting by the full marginal distribution of $X_i$ instead of the distribution of the treated population.
+
+## Exact Matching
+
+Now is a good time to take a step back and think about the feasibility/practicality of exact matching.
+
+:::{.smaller}
+1. We need to have a discrete valued covariates.
+2. We need overlap among covariates (we need treated and untreated observations to have the same values of $X_i$)
+3. We need the CIA to hold given our available data.
+
+Exact matching provides a nice simple example of how matching is operationalized, but these properties may not hold in practice. 
+
+Next, we'll generalize matching to a method of finding counterfactuals based on observables and weighting the difference between treated and counterfactual control observations.
+:::
+
+:::{.smallest}
+**Quick note:** Coarsened exact matching makes exact matching feasible with continuous variables by creating bins (e.g. quantiles) of the continuous variables and matching within those bins.
+:::
+
+## Context: Regression vs. Matching 
+
+:::{.smaller}
+[*MHE*]{.red} shows how certain regression models can be thought of as matching estimators.
+
+In particular, saturated in $X_i$ models (models that include dummies for every value of $X_i$) are equivalent to exact matching with different weights.
+
+With some math (see *MHE* p74-75) the regression coefficient on a dummy treatment variable with saturated $X_i$ can be written as:
+
+$E[Y_{1i} - Y_{0i}|D_i=1] = \tau_{ATT,R} = \frac{E[\sigma^2_D (X_i) \tau_{x}]}{E[\sigma^2_D (X_i)]}$
+
+where $\sigma^2_D (X_i)$ is the conditional variance of $D_i$ given $X_i$.
+
+Given that $D_i$ is a dummy variable we have 
+
+$\tau_{ATT,R} = \frac{\sum_x \tau_x [P(D_i=1|X_i=x)(1-P(D_i=1|X_i=x))]P(X_i=x)}{\sum_x [P(D_i=1|X_i=x)(1-P(D_i=1|X_i=x))]P(X_i=x)}$
+:::
+
+## Context: Regression vs. Matching
+
+So we have:
+
+$\tau_{ATT,R} = \frac{\sum_x \tau_x [P(D_i=1|X_i=x)(1-P(D_i=1|X_i=x))]P(X_i=x)}{\sum_x [P(D_i=1|X_i=x)(1-P(D_i=1|X_i=x))]P(X_i=x)}$
+
+$\tau_{ATT,M} = \sum_x \tau_x P(X_i=x|D_i=1)$
+
+which also equals
+
+$\tau_{ATT,M} = \frac{\sum_x \tau_x P(D_i=1|X_i=x) P(X_i=x)}{\sum_x P(D_i=1|X_i=x) P(X_i=x)}$
+
+given that $P(X_i=x|D_i=1) = \frac{P(D_i=1|Xi=x)P(X_i=x)}{P(D_i=1)}$
+
+## Context: Regression vs. Matching
+
+So the ATT estimated through matching and regression are both taking weighted averages of the difference in means at different covariate value cells.
+
+::: {.fragment}
+For $\tau_{ATT,M}$ we weight the difference in means by the conditional distribution of $X_i|D_i=1$ - the characteristics of the treated population.
+:::
+
+::: {.fragment}
+For $\tau_{ATT,R}$ we weight by the conditional variance of $D_i$.
+:::
+
+::: {.fragment .smaller}
+Some key insights:
+
+- The esimates will be the same if $\tau_x$ is constant across cells of covariates.
+- If the treatment effect depends on covariate values (as it often does) they will not be the same.
+- The estimands have different efficiency properties (even with constant $\tau_x$).
+- Understanding regression weights is important in a variety of settings (e.g. [TWFE](https://www.aeaweb.org/articles?id=10.1257/aer.20181169))
+
+:::
+
+## General setup
+
+We want to construct a counterfactual for each individual with $\text{D}_{i}=1$.
+
+::: {.fragment}
+The counterfactual for $i$ should only use individuals that match $\text{X}_{i}$.
+:::
+
+::: {.fragment}
+Let there be $N_T$ treated individuals and $N_C$ control individuals. We want:
+
+- $N_T$ sets of weights
+- with $N_C$ weights in each set
+:::
+
+::: {.fragment}
+$w_i(j)\, \left( i = 1,\,\ldots,\, N_T;\, j=1,\,\ldots,\, N_C \right)$
+:::
+
+::: {.fragment}
+Assume $\sum_j w_i(j) = 1$. Our estimate for the counterfactual of treated $i$ is
+$$
+\begin{align}
+  \widehat{\text{Y}_{0i}} = \sum_{j\in \left( D=0 \right)} w_i(j) \text{Y}_{j}
+\end{align}
+$$
+:::
+
+## More formally
+
+If our estimated counterfactual for treated individual $i$ is
+
+:::{.smaller}
+$$
+\begin{align}
+  \widehat{\text{Y}_{0i}} = \sum_j w_i(j) \text{Y}_{j}
+\end{align}
+$$
+:::
+
+then our estimated treatment effect (for individual $i$) is
+
+:::{.smaller}
+$$
+\begin{align}
+  \widehat{\tau}_i = \text{Y}_{1i} - \widehat{\text{Y}_{0i}} = \text{Y}_{1i} - \sum_j w_i(j) \text{Y}_{j}
+\end{align}
+$$
+:::
+
+::: {.fragment .smaller}
+a generic matching estimator for the treatment effect on the treated is
+$$
+\begin{align}
+  \widehat{\tau}_M = \dfrac{1}{N_T} \sum_{i \in \left( \text{D}=1 \right)} \left( \text{Y}_{1i} - \widehat{\text{Y}_{0i}} \right) = \dfrac{1}{N_T} \sum_{i \in \left( \text{D}=1 \right)} \left( \text{Y}_{1i} - \sum_{j\in \left( D=0 \right)} w_i(j) \text{Y}_{j} \right)
+\end{align}
+$$
+:::
+
+## Weighting
+
+So all we need is those weights and we're done... great.
+
+::: {.fragment}
+**Q:** Where does one find the weights?
+:::
+
+::: {.fragment}
+**A:** You've got options, but you need to choose carefully/responsibly.
+
+*E.g.*, if $w_i(j) = \frac{1}{N_C}$ for all $(i,j)$, then we're back to a difference in means.
+<br> We can't use the conditional independence assumption because we're not conditioning on any observables.
+:::
+
+::: {.fragment}
+**Gameplan:** Choose weights $w_i(j)$ that indicate [*how close*]{.dblue} $\text{X}_{j}$ is to $\text{X}_{i}$.
+:::
+
+## Proximity 
+
+Our weights $w_i(j)$ should be a measure of [*how close*]{.dblue} $\text{X}_{j}$ is to $\text{X}_{i}$.
+
+::: {.fragment}
+If $\text{X}$ is [discrete]{.dblue}, then we can consider equality, _i.e._, $w_i(j) = \mathbb{1}\{\text{X}_{i} = \text{X}_{j}\}$, scaling as necessary to get $\sum_j w_i(j) = 1$.
+:::
+
+::: {.fragment}
+This is essentially what we did with exact matching.  Assign a uniform constant weight to all observations that had the exact same covariate values of a treatment observation and assign a weight of zero to all other observations.
+:::
+
+## Proximity
+
+Our weights $w_i(j)$ should be a measure of ***how close*** $\text{X}_{j}$ is to $\text{X}_{i}$.
+
+If $\text{X}$ is [continuous]{.dblue}, then we need *proximity* rather than *equality*.
+
+::: {.fragment}
+[*Nearest-neighbor* matching]{.dblue} chooses the single closest control observation using the Euclidean distance between $\text{X}_{i}$ and $\text{X}_{j}$, _i.e._,
+
+$$
+\begin{align}
+  \text{d}_{i,j} = \left( \text{X}_{i} - \text{X}_{j} \right)'\left(\text{X}_{i} - \text{X}_{j}\right)
+\end{align}
+$$
+
+:::
+
+::: {.fragment}
+- $\widehat{\tau}_i = \text{Y}_{1i} - \text{Y}_{0j}^i$, where $\text{Y}_{0j}^i$ is $i$'s nearest neighbor in the control group.
+
+- **Estimator:** $\widehat{\tau}_M = \frac{1}{N_T} \sum_i \widehat{\tau}_i$
+- Produces causal estimates if CIA is valid *and* we have sufficient overlap.
+- Suffers from arbitrary choices of units.
+:::
+
+## Proximity
+
+Our weights $w_i(j)$ should be a measure of ***how close*** $\text{X}_{j}$ is to $\text{X}_{i}$.
+
+If $\text{X}$ is [continuous]{.dblue}, then we need *proximity* rather than *equality*.
+
+[*Nearest-neighbor* matching with Mahalanobis distance]{.dblue} chooses the single closest control using [Mahalanobis]{.dblue} distance between $\text{X}_{i}$ and $\text{X}_{j}$, _i.e._,
+
+$$
+\begin{align}
+  \text{d}_{i,j} = \left( \text{X}_{i} - \text{X}_{j} \right)' \Sigma_{X}^{-1} \left(\text{X}_{i} - \text{X}_{j}\right)
+\end{align}
+$$
+where $\Sigma_{X}^{-1}$ is the covariance matrix of $\text{X}$.
+
+::: {.fragment}
+- **Estimator:** $\widehat{\tau}_M = \frac{1}{N_T} \sum_i \widehat{\tau}_i$ where $\left(\widehat{\tau}_i = \text{Y}_{1i} - \text{Y}_{0j}^i\right)$
+- Produces causal estimates if CIA is valid *and* we have sufficient overlap.
+- Does not suffer from arbitrary choices of units.
+:::
+
+## More neighbors?
+
+Why limit ourselves to a **single** "best" match?
+
+If we're going to let a function/algorithm choose the *nearest* match, can't we also let the function/algorithm choose *how many* matches?
+
+Furthermore, if $N_C \gg N_T$, we're throwing away *a lot* of potentially useful information.
+
+We could instead use this information and be more efficient.
+
+
+## More neighbors! 
+
+[Kernel matching]{.dblue} gives positive weight to all control observations within some **bandwidth** $h$, with higher weight for closer matches determined by some **kernel function** $K(\cdot)$,
+$$
+\begin{align}
+  w_i(j) = \dfrac{K\!\!\left( \dfrac{\text{X}_{j} - \text{X}_{i}}{h} \right)}{\sum_{j\in(D=0)} K\!\!\left(\dfrac{\text{X}_{j} - \text{X}_{i}}{h} \right)}
+\end{align}
+$$
+
+::: {.fragment}
+**Example:** The *Epanechnikov kernel* is defined as
+$$
+\begin{align}
+  K(z) = \dfrac{3}{4} \left( 1 - z^2 \right) \times \mathbb{1}\{ |z| < 1 \}
+\end{align}
+$$
+:::
+
+---
+
+[The Epanechnikov kernel]{.dblue} $K(z) = \frac{3}{4} \left( 1 - z^2 \right) \times \mathbb{1}\{ |z| < 1 \}$
+
+```{r, epanechnikov, echo = F}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) 3/4 * (abs(x) <= 1) * (1 - x^2),
+  color = 'dodgerblue',
+  size = 2
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+
+---
+
+```{r, ex_epanechnikov, echo = F, fig.height = 3.7}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) 3/4 * (abs(x) <= 1) * (1 - x^2),
+  color = 'dodgerblue',
+  size = 2
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+---
+
+```{r, ex_epa_point, echo = F, fig.height = 3.7}
+epa_fun <- function(x) 3/4 * (abs(x) <= 1) * (1 - x^2)
+set.seed(123)
+tmp <- tibble(x = runif(7, -2, 2), y = 0, k = epa_fun(x), w = k / sum(k))
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) 3/4 * (abs(x) <= 1) * (1 - x^2),
+  color = 'dodgerblue',
+  size = 2
+) +
+geom_segment(
+  data = tmp,
+  aes(x = x, xend = x, y = y, yend = k),
+  color = slate,
+  linetype = "solid"
+) +
+geom_point(
+  data = tmp,
+  aes(x, k),
+  color = slate,
+  size = 4.5
+) +
+geom_point(
+  data = tmp,
+  aes(x, y),
+  color = slate,
+  fill = "white",
+  size = 4.5,
+  shape = 21
+) +
+annotate(
+  geom = "text",
+  x = -2.5, y = 0.875,
+  label = "Mapping data into the kernel",
+  family = "Fira Sans Book",
+  size = 7,
+  hjust = 0,
+  vjust = 0,
+  color = slate
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+::: {.fragment}
+
+```{r, ex_weights, echo = F, fig.height = 3.7}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) 3/4 * (abs(x) <= 1) * (1 - x^2),
+  color = NA,
+  size = 2
+) +
+geom_point(
+  data = tmp,
+  aes(x, w),
+  color = 'dodgerblue',
+  size = 4.5
+) +
+annotate(
+  geom = "text",
+  x = -2.5, y = 0.45,
+  label = "Observations' weights",
+  family = "Fira Sans Book",
+  size = 7,
+  hjust = 0,
+  vjust = 0,
+  color = 'dodgerblue'
+) +
+ylim(0, 0.5) +
+xlab("z") +
+ylab("w") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+:::
+
+---
+
+
+[The Epanechnikov kernel]{.dblue} $K(z) = \frac{3}{4} \left( 1 - z^2 \right) \times \mathbb{1}\{ |z| < 1 \}$
+
+```{r, epanechnikov2, echo = F}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) 3/4 * (abs(x) <= 1) * (1 - x^2),
+  color = 'dodgerblue',
+  size = 2
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+---
+
+[The Triangle kernel]{.dblue} $K(z) = \left( 1 - |z| \right) \times \mathbb{1}\{ |z| < 1 \}$
+
+```{r, triangle, echo = F}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) (abs(x) <= 1) * (1 - abs(x)),
+  color = 'dodgerblue',
+  size = 2
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+---
+
+[The Uniform kernel]{.dblue} $K(z) = \frac{1}{2} \times \mathbb{1}\{ |z| < 1 \}$
+
+```{r, uniform, echo = F}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) (abs(x) <= 1) * 1/2,
+  n = 1e3,
+  color = 'dodgerblue',
+  size = 2
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+
+---
+
+[The Gaussian kernel]{.dblue} $K(z) = \left( 2\pi \right)^{-1/2}  \exp\left(-z^2/2 \right)$
+
+```{r, gaussian, echo = F}
+ggplot(
+  data = data.frame(x = c(-2.5, 2.5)),
+  aes(x = x)
+) +
+geom_hline(
+  yintercept = 0,
+  color = "grey70"
+) +
+stat_function(
+  fun = function(x) (2 * pi)^(-1/2) * exp(-x^2/2),
+  color = 'dodgerblue',
+  size = 2.5
+) +
+ylim(0, 1) +
+xlab("z") +
+ylab("K(z)") +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", face = "italic", size = 22),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95")
+)
+```
+
+# Kernels
+## Aside
+
+Kernel functions are good for more than just matching.
+
+You will most commonly see/use them smoothing out densities—providing a smooth, moving-window average.
+
+::: {.fragment}
+_E.g._, R's (`ggplot2`'s) smooth, density-plotting function `geom_density()`.
+
+`geom_density()` defaults to `kernel = "gaussian"`, but you can specify many other kernel functions (including `"epanechnikov"`).
+:::
+
+::: {.fragment}
+You can also change the `bandwidth` argument. The default is a bandwidth-choosing function called `bw.nrd0()`.
+:::
+
+
+# Matching
+## Adding neighbors
+
+As we add more neighbors—either moving from $1$ to $n>1$ or increasing our bandwidth—we potentially increase the efficiency of our estimator.
+
+::: {.fragment}
+We need to **be careful not to add *too many* controls** for each treated $i$.
+:::
+
+::: {.fragment}
+CIA requires that we're actually conditioning on the observables—it does not allow us to take a simple average across all control observations.
+:::
+
+::: {.fragment}
+This has the flavor of a bias-variance tradeoff.
+:::
+
+## The curse of dimensionality
+
+It turns out kernel- and bandwidth-selection are not our biggest enemies.
+
+::: {.fragment}
+As the dimension of $\text{X}$ expands (matching on more variables), it becomes **harder and harder to find a nice, close control** for each treated unit.
+:::
+
+::: {.fragment}
+We need a way to shrink the dimensionality of $\text{X}$.
+:::
+
+# Propensity-score methods
+## Setup
+
+Let's begin with two assumptions—one old and one new.
+
+1. [**Conditional independence:**]{.dblue} $\left( \text{Y}_{0i},\, \text{Y}_{1i} \right) \ci \text{D}_{i}|\text{X}_{i}$
+
+2. [**Overlap:**]{.dblue} $0 < \mathop{\text{Pr}}\left(\text{D}_{i} = 1 \mid \text{X}_{i}\right) < 1$
+
+::: {.fragment}
+We can estimate an average treatment effect by conditioning on $\text{X}_{i}$.
+:::
+
+::: {.fragment}
+However, overlap may fail if the dimensions of $X$ are large and $N$ is finite.
+:::
+
+::: {.fragment}
+**Propensity scores provide a solution** to this challenge
+:::
+
+## The trick
+
+It turns out that if $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|\text{X}_{i},\,$ then we actually only need to match/condition on $p(\text{X}_{i}) = \mathop{E}\left[ \text{D}_{i} | \text{X}_{i} \right]$.
+
+::: {.fragment}
+$p(\text{X}_{i})$ is the **propensity score**
+:::
+
+::: {.fragment}
+the probability of treatment given $\text{X}_{i}.$
+:::
+
+::: {.fragment}
+**Propensity-score theorem** If $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|\text{X}_{i},\,$ then $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|p(\text{X}_{i}).$
+:::
+
+::: {.fragment}
+This theorem extends our CIA to a one-dimensional score, avoiding the curse of dimensionality.
+:::
+
+## Intuition
+
+:::{.smaller}
+**Q:** What's going on here?
+
+$\text{X}_{i}$ carries way more information than $p(\text{X}_{i})$, so how can we still get conditional independence of treatment by only conditioning on $p(\text{X}_{i})$?
+
+::: {.fragment}
+**$A_1:$** Conditional independence of treatment isn't about extracting all of the information possible from $\text{X}_{i}$. We actually only using $X_i$ such that  $\text{D}_{i}|X_i$ is independent of $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right)$.
+:::
+
+::: {.fragment}
+**$A_2:$** Back to our main concern: **selection bias**. People select into treatment. If $\text{X}_{i}$ says two people were equally likely to be treated, and if $\text{X}_{i}$ explains all of selection (CIA), then there cannot be selection bias between these two people.
+:::
+
+::: {.fragment}
+Another way of saying this is that the information we care about in $X_i$ pertains to the probability (propensity) of being treated, which is is $p(D_i=1|X_i) = p(X_i)$.
+:::
+:::
+
+## Estimation
+
+So where do propensity scores come from?
+
+::: {.fragment}
+We estimate them—and there are a lot of ways to do that.
+
+1. Flexible (_i.e._, interactions) logit specification
+2. Kernel regression (remember kernel functions?)
+3. Many others—machine learning, series-logit estimator, *etc.*
+:::
+
+::: {.fragment}
+**Q:** Can we just use plain OLS (linear probability model)?
+:::
+
+::: {.fragment}
+**A:** Sort of. Think about FWL. This route is going to be the same as a regression conditioning on $\text{X}_{i}$.
+:::
+
+## Estimation
+
+:::{.smaller}
+From *MHE* (p. 83)
+
+**Question**
+
+> A big question here is how to best model and estimate $p(\text{X}_{i})$...
+
+**Answer**
+
+> The answer to this is inherently application-specific. A growing empirical literature suggests that a logit model for the propensity score with a few polynomial terms in continuous covariates works well in practice...
+
+See Caliendo & Kopeinig (2008), *SOME PRACTICAL GUIDANCE FOR THE IMPLEMENTATION OF PROPENSITY SCORE MATCHING*
+:::
+
+## Application 
+
+:::{.smaller}
+So you have some estimated propensity scores $\widehat{p}(\text{X}_{i})$. What next?
+
+::: {.fragment}
+**Option 1:** Conditioning via regression
+$$
+\begin{align}
+   \text{Y}_{i} = \alpha + \delta \text{D}_{i} + \beta \text{X}_{i} + u_i \tag{1}
+\end{align}
+$$
+
+:::
+
+::: {.fragment}
+**Option 1a:** Use a **regression to condition** on $p(\text{X}_{i})$, _i.e._,
+$$
+\begin{align}
+   \text{Y}_{i} = \alpha + \delta \text{D}_{i} + \beta p(\text{X}_{i}) + u_i \tag{1a}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+**Option 1b:** If we think treatment effects are heterogeneous and may covary with $\text{X}$, then we might want to also **interact** treatment with $p(\text{X}_{i})$, _i.e._,
+$$
+\begin{align}
+   \text{Y}_{i} = \alpha + \delta_1 \text{D}_{i} + \delta_2 \text{D}_{i} p(\text{X}_{i}) + \beta p(\text{X}_{i}) + u_i \tag{1b}
+\end{align}
+$$
+:::
+:::
+
+## Heterogeneity with regression
+
+Let's think a bit more about heterogeneous treatment effects in this setting.
+$$
+\begin{align}
+  \text{Y}_{0i} &= \alpha + \beta \text{X}_{i} + u_i \\
+  \text{Y}_{1i} &= \text{Y}_{0i} + \delta_1 + \delta_2 \text{X}_{i}
+\end{align}
+$$
+_i.e._, the treatment effect depends upon $\text{X}_{i}$.
+
+::: {.fragment}
+$\text{Y}_{i} = \text{D}_{i}\text{Y}_{1i} + \left( 1 - \text{D}_{i} \right) \text{Y}_{0i}$
+:::
+
+::: {.fragment}
+$= \text{D}_{i}\bigg( \text{Y}_{0i} + \delta_1 + \delta_2 \text{X}_{i} \bigg) + \left( 1 - \text{D}_{i} \right) \text{Y}_{0i}$
+:::
+
+::: {.fragment}
+$= \text{Y}_{0i} + \delta_1 \text{D}_{i} + \delta_2 \text{D}_{i} \text{X}_{i}$
+:::
+
+::: {.fragment}
+$= \alpha + \delta_1 \text{D}_{i} + \delta_2 \text{D}_{i} \text{X}_{i} + \beta \text{X}_{i} + u_i$
+:::
+
+## Heterogeneity
+
+This final equation
+$$
+\begin{align}
+  \text{Y}_{i} = \alpha + \delta_1 \text{D}_{i} + \delta_2 \text{D}_{i} \text{X}_{i} + \beta \text{X}_{i} + u_i
+\end{align}
+$$
+
+::: {.fragment}
+suggests that we want $p(\text{X}_{i})$ *and* $\text{D}_{i}p(\text{X}_{i})$, _i.e._,
+$$
+\begin{align}
+   \text{Y}_{i} = \alpha + \delta_1 \text{D}_{i} + \delta_2 \text{D}_{i} p(\text{X}_{i}) + \beta p(\text{X}_{i}) + u_i \tag{1b}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+which yields
+
+1. a **group-specific treatment effect** $\delta_1 + \delta_2 p(\text{X}_{i})$ for each $\text{X}_{i}$
+
+2. an **average treatment effect** $\delta_1 + \delta_2 \overline{p}(\text{X}_{i})$
+:::
+
+## More flexibility
+
+We motivated propensity scores with a desire to reduce dimensionality and estimate/choose/assume fewer parameters.
+
+Adding $p(\text{X}_{i})$ and $\text{D}_{i}p(\text{X}_{i})$ as covariates in a linear regression doesn't quite exhaust our potential for flexible/nonparametric estimation.
+
+## Blocking 
+
+**Option 2:** Block (stratify) on propensity scores.
+
+::: {.fragment}
+1. Divide the range of $\widehat{p}(\text{X}_{i})$ into $K$ blocks (_e.g._, 0.05-wide blocks).
+
+1. Place each observation into a block via its $\widehat{p}(\text{X}_{i})$.
+
+1. Calculate $\widehat{\tau}_k$ for each block via difference in means.
+
+1. Average the $\widehat{\tau}_k$ using their shares of the sample, _i.e._,
+
+$$
+\begin{align}
+  \widehat{\tau}_\text{Block} = \sum_{k = 1}^K  \widehat{\tau}_k \dfrac{N_{1k} + N_{0k}}{N}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+**Note** Blocking is similar to NN/kernel matching using $p(\text{X}_{i})$ as distance
+:::
+
+## Choosing blocks
+
+Blocking on propensity scores requires defining blocks.
+
+One common route involves some iteration.
+
+1. **Choose blocks**.
+
+1. Check the **balance of the covariates** within each block.
+
+  - If covariates are [not balanced]{.dblue}, then split your blocks and repeat.
+
+  - If covariates are [balanced]{.dblue}, then stop.
+
+:::{.smallest}
+Note: Keep multiple-hypothesis testing in mind. With many covariates and many blocks, you are bound to find statistically significant relationships—even if you are actually balanced.
+:::
+
+## Overlap
+
+Blocking emphasizes our overlap assumption, _i.e._, $0<\mathop{\text{Pr}}\left(\text{D}_{i} | \text{X}_{i}\right)<1$.
+
+If a block contains zero treated/control units, we cannot calculate $\widehat{\tau}_k$.
+
+::: {.fragment}
+[Caution]{.hi-orange} Logit can hide violations—it forces $0 < \widehat{p}(\text{X}_{i}) < 1$.
+:::
+
+::: {.fragment}
+**Common practice:** Empirically enforce overlap:
+
+- Drop control units with $\widehat{p}(\text{X}_{i})$ below the minimum propensity score in the treatment group.
+
+- Drop treated units with $\widehat{p}(\text{X}_{i})$ above the maximum propensity score in the control group.
+:::
+
+## Weighting
+
+**Option 3:** Weight observations by the inverse propensity score.
+
+::: {.fragment}
+**Q:** How does weighting by $1/\widehat{p}(\text{X}_{i})$ make sense?
+:::
+
+::: {.fragment}
+**A:** Recall the simple difference in means, _i.e._,
+$$
+\begin{align}
+  \widehat{\tau}_\text{Diff} = \overline{\text{Y}}_\text{T} - \overline{\text{Y}}_\text{C} = \dfrac{\sum_i \text{D}_{i} \text{Y}_{i}}{\sum_i \text{D}_{i}} - \dfrac{\sum_i \left(1 - \text{D}_{i}\right) \text{Y}_{i}}{\sum_i \left(1 - \text{D}_{i}\right)}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+which we've discussed is biased due to selection into treatment, _i.e._,
+$$
+\begin{align}
+  \mathop{E}\left[ \text{Y}_{0i} | \text{D}_{i} = 1 \right] \neq \mathop{E}\left[ \text{Y}_{0i} \right]
+\end{align}
+$$
+:::
+
+## Weighting, justified
+
+:::{.smallest}
+Suppose we know $p(\text{X}_{i})$ and we weight each [treated]{.dblue} individual by $1/p(\text{X}_{i})$
+
+::: {.fragment}
+$\mathop{E}\left[ \dfrac{\text{D}_{i} \text{Y}_{i}}{p(\text{X}_{i})} \right]$
+:::
+
+::: {.fragment}
+ $= \mathop{E}\left[ \dfrac{\text{D}_{i}\left(\text{D}_{i}\text{Y}_{1i} + (1-\text{D}_{i})\text{Y}_{0i}\right)}{p(\text{X}_{i})} \right]$
+:::
+
+::: {.fragment}
+ $= \mathop{E}\left[ \dfrac{\text{D}_{i} \text{Y}_{1i}}{p(\text{X}_{i})} \right]$
+:::
+
+::: {.fragment}
+$= \mathop{E}\!\bigg( \mathop{E}\left[ \dfrac{\text{D}_{i}\text{Y}_{1i}}{p(\text{X}_{i})} \;\middle|\; \text{X}_{i} \right] \bigg)$
+:::
+
+::: {.fragment}
+ $= \mathop{E}\!\bigg( \dfrac{\mathop{E}\left[ \text{D}_{i} \mid \text{X}_{i} \right] \mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}{p(\text{X}_{i})} \bigg)$
+:::
+
+::: {.fragment}
+$= \mathop{E}\!\bigg( \dfrac{p(\text{X}_{i}) \mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}{p(\text{X}_{i})} \bigg)$
+:::
+:::
+
+---
+
+:::{.smaller}
+
+$= \mathop{E}\!\bigg( \dfrac{p(\text{X}_{i}) \mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}{p(\text{X}_{i})} \bigg)$
+
+::: {.fragment}
+ $= \mathop{E}\!\bigg( \mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right] \bigg)$
+:::
+
+::: {.fragment}
+ $\color{#0073e6}{= \mathop{E}\left[ \text{Y}_{1i} \right]}$
+:::
+
+::: {.fragment}
+Similarly, weighting [**control**]{.green} individuals by $1/(1-p(\text{X}_{i}))$ yields
+$$
+\begin{align}
+  \mathop{E}\left[ \dfrac{(1-\text{D}_{i})\text{Y}_{i}}{1-p(\text{X}_{i})} \right] = \color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \right]}
+\end{align}
+$$
+:::
+
+:::
+
+## Weighting: The estimator
+
+Thus, we can estimate an unbiased treatment effect via
+$$
+\begin{align}
+  \widehat{\tau}_{p\text{Weight}} = \dfrac{1}{N} \sum_{i=1}^N \left[ \dfrac{\text{D}_{i}\text{Y}_{i}}{p(\text{X}_{i})} - \dfrac{(1-\text{D}_{i}\text{Y}_{i})}{1 - p(\text{X}_{i})} \right]
+\end{align}
+$$
+
+::: {.fragment .smallest}
+**Intuition:** We're trying to overcome selection bias, _i.e._, treated individuals were more likely to be treated as a function of $\text{X}_{i}$ — producing higher $p(\text{X}_{i})$ (consequently lower values of $p(\text{X}_{i})$ for control observations).
+:::
+
+::: {.fragment}
+We want to get back to *as-good-as random* variation in treatment.
+
+So we place more weight on:
+
+[(**1**)]{.dblue}  [**treated**]{.dblue} individuals with low] $\color{#0073e6}{p(\text{X}_{i})}$ and
+
+[(**2**)]{.green} [**control**]{green} observations with high] $\color{#006400}{p(\text{X}_{i})}$.
+:::
+
+## Weighting: The example
+
+:::{.smaller}
+Suppose for some individual $i$, $p(\text{X}_{i}) = 0.80$.
+
+::: {.fragment}
+This propensity score says someone with this set of $\text{X}_{i}$ was four-times more likely to be [treated]{.dblue} than [control]{.hi-green}.
+:::
+
+::: {.fragment}
+Our weights fix this imbalance for each $\text{X}_{i}$.
+:::
+
+::: {.fragment}
+- If $i$ is [treated]{.dblue}, then her weight is $1/p(\text{X}_{i}) = 1/0.80 = 1.25$
+:::
+
+::: {.fragment}
+- If $i$ is [control]{.green}, then her weight is $1/(1-p(\text{X}_{i})) = 1/(1-0.80) = 5$
+:::
+
+::: {.fragment}
+And guess what $5/1.25$ is...
+:::
+
+::: {.fragment}
+ $4$!
+:::
+
+::: {.fragment}
+ This weighting scheme gets us back to equal representation for each set of $\text{X}_{i}$.
+:::
+:::
+
+## Weighting: Last issue
+
+**Practical issue:** Nothing guarantees $\sum_i \widehat{p}(\text{X}_{i}) = 1$.
+
+::: {.fragment}
+**Solution:** Normalize weights by their total sum.
+:::
+
+::: {.fragment}
+Applying the normalized (and estimated) propensity scores
+$$
+\begin{align}
+  \widehat{\tau}_{p\text{Weight}} = \sum_{i=1}^N \dfrac{ \dfrac{\text{D}_{i}\text{Y}_{i}}{\widehat{p}(\text{X}_{i})} }{\sum_{i} \dfrac{\text{D}_{i}}{\widehat{p}(\text{X}_{i})}} -
+  \sum_{i=1}^N \dfrac{ \dfrac{(1-\text{D}_{i})\text{Y}_{i}}{1-\widehat{p}(\text{X}_{i})} }{\sum_{i} \dfrac{(1-\text{D}_{i})}{1-\widehat{p}(\text{X}_{i})}}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+Hirano, Imbens, and Ridder (2003) suggests this estimator is efficient.
+:::
+
+## Why choose one?
+
+There's nothing special about weighted averages—regression can weight.
+
+Thus, a **regression-based estimate**
+$$
+\begin{align}
+  \text{Y}_{i} = \alpha + \text{X}_{i}\beta + \tau \text{D}_{i} + u_i
+\end{align}
+$$
+
+::: {.fragment}
+with **weights**
+$$
+\begin{align}
+  w_i = \sqrt{\dfrac{\text{D}_{i}}{\widehat{p}(\text{X}_{i})} + \dfrac{(1-\text{D}_{i})}{1-\widehat{p}(\text{X}_{i})}}
+\end{align}
+$$
+:::
+
+::: {.fragment}
+offers a *doubly robust* property—you have two chances to be right: $p(\text{X}_{i})$ or the regression specification.
+:::
+
+## Why choose one? Part two
+
+An alternative, doubly robust method combines propensity-score blocking with regression.
+
+::: {.fragment}
+.note[Step 1] For each block $k$, we run the regression
+$$
+\begin{align}
+  \text{Y}_{i} = \alpha_k + \text{X}_{i} \beta_k + \tau_k \text{D}_{i} + u_i
+\end{align}
+$$
+:::
+
+::: {.fragment}
+.note[Step 2] Aggregate block-level treatment-effect estimates
+$$
+\begin{align}
+  \widehat{\tau} = \sum_{k=1}^K \widehat{\tau}_k \dfrac{N_{1k} + N_{0k}}{N}
+\end{align}
+$$
+:::
+
+## Major requirements
+
+Don't get (too) caught up in the bells and whistles.
+
+We still have two **major** requirements for any of these methods to work?
+
+::: {.fragment}
+1. Is the **conditional-independence assumption** true?
+:::
+
+::: {.fragment}
+2. Do we have **overlap** between treatment and control units?
+:::
+
+::: {.fragment}
+We can look for evidence of (**2**) in the data—particularly if we're using propensity-score methods.
+
+How? Plot the distributions of $p(\text{X}_{i})$ for [**T**]{.dblue} and [**C**]{.green}.
+:::
+
+::: {.fragment .smallest}
+Note: Checking for overlap in $\text{X}$-space, can be tough as the dimensions of $\text{X}$ expand.  Careful of this when using logit to estimate the propensity score.
+:::
+
+## 
+
+Missing overlap in $p(\text{X}_{i})$
+```{r, ex-no-overlap, echo = F}
+# Set seed
+set.seed(123)
+# Sample size
+n <- 1e3
+# Generate data
+no_overlap <- tibble(
+  x = runif(n = n, min = 15, max = 85),
+  e = rnorm(n),
+  p = (x + e) / 100,
+  trt = rbinom(n = n, size = 1, prob = p)
+) %>% bind_rows(., tibble(
+  x = c(runif(100, min = 0, max = 15), runif(100, min = 85, max = 100)),
+  e = 0,
+  p = x / 100,
+  trt = rep(c(0,1), each = 100)
+))
+no_overlap$p_hat <- glm(trt ~ x, data = no_overlap, family = "binomial")$fitted.values
+# Plot
+ggplot(
+  data = no_overlap,
+  aes(
+    x = p,
+    fill = factor(trt, labels = c("C", "T"))
+  )
+) +
+geom_density(
+  kernel = "epanechnikov",
+  color = NA,
+  alpha = 0.7
+) +
+geom_hline(yintercept = 0) +
+scale_fill_manual("", values = c(green,dblue)) +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+scale_x_continuous("p(X)", limits = c(0, 1)) +
+ylab("Density") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", size = 22, face = "italic"),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95"),
+  legend.position = "bottom"
+)
+```
+
+---
+
+Authentic (enforced) overlap in $p(\text{X}_{i})$
+```{r, ex-overlap-p, echo = F}
+# Plot
+ggplot(
+  data = no_overlap %>% filter(between(p, 0.15, 0.85)),
+  aes(
+    x = p,
+    fill = factor(trt, labels = c("C", "T"))
+  )
+) +
+geom_density(
+  kernel = "epanechnikov",
+  color = NA,
+  alpha = 0.7
+) +
+geom_hline(yintercept = 0) +
+scale_fill_manual("", values = c(green,dblue)) +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+scale_x_continuous("Est. p(X)", limits = c(0.15, 0.85)) +
+ylab("Density") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", size = 22, face = "italic"),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95"),
+  legend.position = "bottom"
+)
+```
+
+---
+
+Logit-based $\widehat{p}(\text{X}_{i})$ hiding some of the missing overlap in $p(\text{X}_{i})$
+```{r, ex-no-overlap-logit, echo = F}
+# Plot
+ggplot(
+  data = no_overlap,
+  aes(
+    x = p_hat,
+    fill = factor(trt, labels = c("C", "T"))
+  )
+) +
+geom_density(
+  kernel = "epanechnikov",
+  color = NA,
+  alpha = 0.7
+) +
+geom_hline(yintercept = 0) +
+scale_fill_manual("", values = c(green,dblue)) +
+theme_minimal(base_size = 20, base_family = "Fira Sans Book") +
+scale_x_continuous("Est. p(X)", limits = c(0, 1)) +
+ylab("Density") +
+theme(
+  axis.title = element_text(family = "STIXGeneral", size = 22, face = "italic"),
+  panel.grid.major = element_line(size = 0.5, color = "grey95"),
+  panel.grid.minor = element_line(size = 0.5, color = "grey95"),
+  legend.position = "bottom"
+)
+```
+
+---
+
+Overlap in one dimension does not guarantee in two dimensions.
+
+Note: Shading denotes **share of treatment:** [white]{.grey-light}=0% and [blue]{.dblue}=100%.
+
+```{r, ex-overlap2, echo = F}
+# Data
+t_df <- tibble(
+  race = rep(c(0, 1), times = 2),
+  gender = rep(c(0, 1), each = 2),
+  p = c(1, 0, 0, 1) %>% as.factor()
+)
+# c_df <- tibble(
+#   race = rep(c(0, 1), times = 2),
+#   gender = rep(c(0, 1), each = 2),
+#   p = c(0, 1, 1, 0) %>% as.factor()
+# )
+gg_t <- ggplot(data = t_df, aes(x = race, y = gender, fill = p)) +
+geom_tile(color = "grey80", size = 0.35) +
+theme_minimal(base_size = 22, base_family = "Fira Sans Book") +
+coord_equal() +
+scale_fill_manual("Prop. score", values = c(dblue, "white")) +
+scale_y_continuous("", breaks = c(0,1), labels = c("Male", "Female")) +
+scale_x_continuous("", breaks = c(0,1), labels = c("Black", "White")) +
+# ggtitle("Treatment") +
+theme(
+  plot.title = element_text(color = dblue),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  legend.position = "none"
+)
+# gg_c <- ggplot(data = c_df, aes(x = race, y = gender, fill = p)) +
+# geom_tile(color = "grey80", size = 0.35) +
+# theme_minimal(base_size = 22, base_family = "Fira Sans Book") +
+# coord_equal() +
+# scale_fill_manual("Prop. score", values = c(red_dblue, "white")) +
+# scale_y_continuous("", breaks = c(0,1), labels = c("Male", "Female")) +
+# scale_x_continuous("", breaks = c(0,1), labels = c("Black", "White")) +
+# ggtitle("Control") +
+# theme(
+#   plot.title = element_text(color = dblue),
+#   panel.grid.major = element_blank(),
+#   panel.grid.minor = element_blank(),
+#   legend.position = "none"
+# )
+# grid.arrange(gg_t, gg_c, ncol = 2)
+gg_t
+```
+
+# Extensions
+## Balance on observeables
+
+::: {.smaller}
+It's important to keep in mind that our goal is to defend the conditional independence assumption.
+
+::: {.fragment}
+This is an _assumption_.  We cannot test it explicitly; rather we need to make a good argument that it holds.
+:::
+
+::: {.fragment}
+One important component of this is *balance on observables*.  Are the covariates balanced between treatment and control?
+:::
+
+::: {.fragment}
+We **cannot** test balance on unobserveables (we don't observe them), but maybe we can make an argument that:
+:::
+
+::: {.fragment}
+**(a)** We have a lot of important observeables that impact treatment and outcomes.
+:::
+
+::: {.fragment}
+**(b)** If we have balance on observeables we also have balance on unobsereables.
+:::
+:::
+
+## Genetic Matching 
+
+::: {.smaller}
+Enter genetic matching: [Diamond & Sekhon. (2013)](https://www.mitpressjournals.org/doi/abs/10.1162/REST_a_00318) -  `Matching` in [R]{.mono}
+
+::: {.fragment}
+Recall that when we discussed blocking we can adjust the size of the blocks based on covariate balance.
+:::
+
+::: {.fragment}
+This is somewhat ad hoc and also may mask nonlinearites/heterogeneity if we focus on balances in sample means (i.e. t-tests)
+:::
+
+::: {.fragment}
+Genetic matching uses an algorithm to iteratively search for samples based on optimizing some balance metrics.
+
+You can select the metrics, but ideally you can use non-parametric techniques that balance on the full distribution of the covariates (i.e. KS tests).
+
+This formalizes a potentially ad hoc approach to the goal of achieving balance, and consequentially defending the CIA.
+:::
+:::
+
+## Pre-processing data
+
+We showed how matching can generate estimators of treatment effects or matching-like approaches can be used in regression.
+
+The goal in all of these is similar and the right technique depends on the assumptions, properties of the estimator, and the setting.
+
+Another approach is to pre-process data using a matching estimator, and then run use whatever regression techniques you would use. The basic intuition is that you build a balanced sample by matching (potentially with weights), and then you've eliminated at least part of the selection bias in the full sample.
+
+This approach was developed by some political scientist ([Ho et al. (2007)](https://doi.org/10.1093/pan/mpl013)) - `MatchIt` in [R]{.mono}.
+
+## Pre-processing data
+
+We'll get into this in more detail when we discuss quasi-experimental design, in particular difference-in-difference estimators. 
+
+Matching, pre-processing, and propensity score can be useful tools when combined with other causal inference research designs.
+
+More recently this has been used in economics and shown to be able to recover treatment effects from randomized experiments ([Ferraro & Miranda (2017)](https://www.journals.uchicago.edu/doi/abs/10.1086/689868)).
+
+
+# Examples
+
+## Example 1: Single discrete variable
+```{r, create_data_1, include =T, eval = T, cache=T}
+### create some covariates and error terms
+set.seed(5302024)
+dat <- data.table(
+  x1 = sample(1:10,1000,replace=T), #discrete covariate
+  x2 = rnorm(1000,mean=0,sd=2.5), # continuous covariate
+  eta = rnorm(1000), # unobserved factor in assigning treatment
+  e = rnorm(1000) # unobserved factor in outcome
+)
+
+### assign treatment dependent on the discrete (x1), but not continuous variable (x2)
+dat[, p := (x1+eta)/10]
+dat[p>1, p := 1]
+dat[p<0, p := 0]
+dat[,  d := rbinom(n = 1000, size = 1, prob = p)]
+
+### assign outcome
+tau <- 5 ## treatment effect (constant)
+dat[,y := tau*d + 1*x2 + e]
+
+```
+
+
+## Example 1: Overlap
+```{r, overlap1, include=T, eval = T, cache=T}
+### assess treatment overlap on x1
+table(dat$d,dat$x1) 
+
+```
+
+
+## Example 1: Regression
+:::{.smallest}
+```{r, regress1, include=T, eval = T}
+### regression 
+tau.hat.reg <- lm(y ~ d + x1, data=dat)  ## linear x1; no control for x2
+tau.hat.reg2 <- lm(y ~ d + as.factor(x1), data=dat)  ## saturated in x1; no control for x2
+tau.hat.reg3 <- lm(y ~ d + as.factor(x1) + x2, data=dat)  ## saturated in x1; control for x2
+
+stargazer(tau.hat.reg,tau.hat.reg2,tau.hat.reg3,
+          type='text',
+          keep = 'd', 
+          omit.stat	= c('aic','f','ser')
+          )
+
+```
+:::
+
+## Example 1: Exact matching by hand
+
+```{r, match_hand1, eval=T, include=T}
+
+## exact matching by hand
+dat[d==1,mean.1 := mean(y),by=x1] ## mean of treatment within x1
+dat[d==0,mean.0 := mean(y),by=x1] ## mean of control within x1]
+
+## this just gets rid of NA by treatment
+dat[,mean.1 := mean(mean.1,na.rm=T),by=x1]
+dat[,mean.0 := mean(mean.0,na.rm=T),by=x1]
+
+## generate difference in means
+dat[,mean.dif := mean.1-mean.0]
+
+## assign weights based on density of x1 among treated
+weights <- as.data.table(table(dat[d==1,x1]))  ## get the counts of x1 among treated
+setnames(weights,c('x1','weight')) ## rename 
+weights[,weight := weight/length(dat[d==1,d])] ## normalize by number of treated obs
+
+```
+
+
+## Example 1: Exact matching by hand
+
+```{r, match_hand2, eval=T, include=T}
+## pull out mean differences within each value of x1
+tau_x <- unique(dat[,list(x1,mean.dif)])
+
+## merge with weights
+weights[,x1:=as.integer(x1)]
+tau_x <- merge(tau_x,weights,by='x1')
+
+## generate weighted average
+tau_x[,mean.dif.weight := mean.dif*weight]
+sum(tau_x$mean.dif.weight)
+summary(tau.hat.reg2)$coef[2]
+
+```
+
+
+## Example 1: Matching with `Matching` package
+
+:::{.smallest}
+```{r, match1, eval=T, cache=T, include=T}
+### exact match 
+tau.hat.match.exact <- Match(Y=dat$y, Tr=dat$d, X=dat$x1,
+                       exact=T,
+                       estimand = 'ATT',
+                       BiasAdjust = F)
+
+sum(tau_x$mean.dif.weight)
+
+summary(tau.hat.match.exact)
+
+```
+:::
+
+## Example 2: Discrete and continuous variable
+
+:::{.smaller}
+```{r, create_data_2, eval=T, cache=T, include=T}
+### create some covariates and error terms
+rm(list=ls())
+set.seed(5302024)
+dat <- data.table(
+  x1 = sample(1:10,1000,replace=T), #discrete covariate
+  x2 = rnorm(1000, mean=0, sd=2.5), # continuous covariate
+  eta = rnorm(1000,mean=0), # unobserved factor in assigning treatment
+  e = rnorm(1000) # unobserved factor in outcome
+)
+
+### make treatment dependent on the discrete (x1) and the continuous variable (x2)
+dat[, p := (x1+x2+eta)/10]
+dat[p>1, p := 1]
+dat[p<0, p := 0]
+dat[,  d := rbinom(n = 1000, size = 1, prob = p)]
+
+### assess treatment overlap on x1
+table(dat$d,dat$x1)
+
+### assign outcome
+tau <- 5 ## treatment effect (constant)
+dat[,y := tau*d + 1*x2 + e]
+
+```
+:::
+
+## Example 2: Regression
+
+:::{.smaller}
+```{r, regress2, eval=T, cache=T, include=T}
+### regression 
+tau.hat.reg <- lm(y~d + x1, data=dat)
+tau.hat.reg2 <- lm(y~d +x1 + x2, data=dat)
+
+stargazer(tau.hat.reg,tau.hat.reg2,
+          type='text',
+          # keep = 'd', 
+          omit.stat	= c('aic','f','ser')
+)
+
+```
+:::
+
+## Example 2: Matching Maholanobis
+
+:::{.smaller}
+```{r, match2_mah, eval=T, cache=T, include=T}
+### Maholanobis distance
+tau.hat.match.mah <- Match(Y=dat$y, Tr=dat$d, X=dat[,list(x1,x2)],
+                           Weight=2,
+                           estimand = 'ATT',
+                           BiasAdjust = F)
+# MatchBalance(d ~ x1 + x2,match.out = tau.hat.match.mah,nboot=100, data=dat)
+summary(tau.hat.match.mah)
+summary(tau.hat.reg2)$coef[2,]
+
+```
+:::
+
+
+## Example 2: Propensity score
+
+:::{.smaller}
+```{r, pscore2_1, eval=T, cache=T, include=T}
+### propensity score with nearest neighbor matching
+logit  <- glm(d ~ x1+ x2, family = binomial, data = dat)
+dat[,pscore := logit$fitted.values]
+
+tau.hat.match.ps <- Match(Y=dat$y, Tr=dat$d, X=dat$pscore,
+                          Weight=2,
+                          estimand = 'ATT',
+                          BiasAdjust = F)
+# MatchBalance(dat$d~dat$x1,match.out = tau.hat.match.ps,nboot=100)
+
+summary(tau.hat.match.ps)
+tau.hat.match.mah$est
+summary(tau.hat.reg2)$coef[2,]
+
+```
+:::
+
+
+## Example 2: Propensity score (augmented)
+
+:::{.smaller}
+```{r, pscore2_2, eval=T, cache=T, include=T}
+### propensity score, augmented
+tau.hat.match.ps2 <- Match(Y=dat$y, Tr=dat$d, X=dat[,list(x1,x2,pscore)],
+                          Weight=2,
+                          estimand = 'ATT',
+                          BiasAdjust = F)
+summary(tau.hat.match.ps2)
+summary(tau.hat.match.ps)
+```
+:::
+
+
+## Example 2: Regression with propensity score
+
+:::{.smaller}
+```{r, pscore2_3, eval=T, cache=T, include=T}
+### reg with pscore
+tau.hat.reg.ps <- lm(y ~ d + pscore, data=dat)
+tau.hat.match.ps$est
+tau.hat.match.ps$se
+stargazer(tau.hat.reg,tau.hat.reg2,tau.hat.reg.ps,
+          type='text',
+          omit.stat	= c('aic','f','ser')
+)
+
+```
+:::
+
+## Final Word
+
+In general relying on the CIA - via control variables in a regression or with some form of matching - is a hard assumption to defend.
+
+With high resolution fixed effects it is often *more* defensible.
+
+However, a specific research design (identification strategy) really needs to tell the story of how you have random or quasi-random variation in your variable of interest.
+
+Just saying, "I used matching so I have a causal effect" typically won't fly in economics journals these days.
+
+Think about this for your own research.
+
+
+<!-- ---- -->
+<!-- layout: true -->
+<!-- # Propensity-score methods -->
+
+<!-- .note[Theorem] If $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|\text{X}_{i},\,$ then $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|p(\text{X}_{i}).$ -->
+
+<!-- ## Proof -->
+
+<!-- --- -->
+<!-- name: proof -->
+
+<!-- -- -->
+
+<!-- To prove this theorem, we will show $\mathop{\text{Pr}}\left(\text{D}_{i}=1 \mid \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\right) = p(\text{X}_{i})$, _i.e._, $\text{D}_{i}$ is independent of $\left( \text{Y}_{0i},\, \text{Y}_{1i} \right)$ after conditioning on $p(\text{X}_{i})$. -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- count: false -->
+
+<!-- $\mathop{\text{Pr}}\!\bigg[\text{D}_{i}=1 \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=\mathop{E}\!\bigg[\text{D}_i \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+<!-- ] -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=\mathop{E}\!\bigg[ \mathop{E}\!\bigg(\text{D}_i \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i}),\, \text{X}_{i} \bigg) \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+<!-- ] -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=\mathop{E}\!\bigg[ \mathop{E}\!\bigg(\text{D}_i \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, \text{X}_{i} \bigg) \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+<!-- ] -->
+<!-- --- -->
+
+<!-- $\mathop{\text{Pr}}\!\bigg[\text{D}_{i}=1 \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]= \cdots =\mathop{E}\!\bigg[ \mathop{E}\!\bigg(\text{D}_i \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, \text{X}_{i} \bigg) \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=\mathop{E}\!\bigg[ \mathop{E}\!\bigg(\text{D}_i \bigg| \text{X}_{i} \bigg) \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+<!-- ] -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=\mathop{E}\!\bigg[ p(\text{X}_{i}) \bigg| \text{Y}_{0i},\, \text{Y}_{1i},\, p(\text{X}_{i})\bigg]$ -->
+<!-- ] -->
+
+<!-- -- -->
+<!-- .pad-left[ -->
+<!-- $=p(\text{X}_{i})$ -->
+<!-- ] -->
+
+<!-- -- -->
+
+<!-- ∴ $\left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|\text{X}_{i} \implies \left( \text{Y}_{0i},\,\text{Y}_{1i} \right) \ci \text{D}_{i}|p(\text{X}_{i})$ .orange[✔] -->
+<!-- --- -->
