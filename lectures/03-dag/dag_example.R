@@ -141,6 +141,8 @@ g2 <- dagitty('dag {
   C [latent, label="C"]
   C -> T
   C -> Y
+  T -> M
+  M -> Y
   T -> Y
 }')
 

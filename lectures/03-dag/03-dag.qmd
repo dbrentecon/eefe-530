@@ -328,6 +328,7 @@ ggdag_eefe(g2, label_mode = "name")
 A DAG is **not** “everything that matters.”
 
 Goal: include variables that create:
+
 - alternate explanations (back doors)
 - channels (front doors)
 - biases (colliders)
@@ -661,7 +662,6 @@ These rules drive common “bad control” mistakes in regressions.
 
 ### Canonical example: education and wages
 
-
 - **T:** Education  
 - **Y:** Wages  
 - **A:** Ability (unobserved)  
@@ -754,6 +754,7 @@ Conditioning on it:
 ## Good vs. bad controls
 
 Bad controls often arise from:
+
 - post-treatment variables (mediators)
 - colliders (or their descendants)
 
