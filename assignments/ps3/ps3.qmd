@@ -1,0 +1,227 @@
+---
+title: "EEFE 530 — Problem Set 3"
+subtitle: "Matching & Propensity Score Methods - Answer Key"
+author: "EEFE 530: Applied Microeconometrics"
+date: "DATE SUBMITTED"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+  pdf:
+    pdf-engine: xelatex
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+params:
+  solutions: true
+---
+
+```{r}
+#| include: false
+# Packages (install if needed)
+library(pacman)
+library(pacman)
+p_load(
+  broom, tidyverse, foreign,psych,
+  ggplot2, ggthemes, ggforce, ggridges,
+  latex2exp, viridis, extrafont, gridExtra,
+  kableExtra, snakecase, janitor,
+  data.table, dplyr,
+  lubridate, knitr,
+  estimatr, here, magrittr, stargazer,
+  fixest,etable,modelsummary,
+  Matching,MatchIt,Hmisc,rgenoud,optmatch
+)
+
+set.seed(530)
+
+```
+
+
+## Overview {.unnumbered .unlisted}
+
+This problem set uses the classic **LaLonde job training** data to practice matching estimators.
+
+You have two datasets:
+
+- `data/lalonde_nsw.csv`: treated + *experimental* controls (NSW)
+- `data/lalonde_psid.csv`: treated + *observational* controls (PSID)
+
+Outcome: `re78` (earnings in 1978).  
+Treatment: `treat` (1 = participated in training).  
+Pre-treatment covariates: `age`, `education`, `black`, `hispanic`, `married`, `nodegree`, `re74`, `re75`.
+
+### Submission {.unnumbered .unlisted}
+
+Push to GitHub Classroom:
+
+- `ps3_<LAST_NAME>.qmd`
+- rendered output: `submission_<LAST_NAME>.html` (or `submission_<LAST_NAME>.pdf`)
+- any helper files you used (figures, scripts)
+
+Recommended repo structure:
+
+```
+├── ps3_<LASTNAME>.qmd
+├── submission_<LASTNAME>.html
+└── data/
+    ├── lalonde_nsw.csv
+    └── lalonde_psid.csv
+```
+
+Write your code inline as shown below
+```{r}
+#| include: true
+# Example code
+treat.test <- c(1,2,3)
+control.test <- c(0,1,2)
+
+att.test <- mean(treat.test) - mean(control.test)
+
+```
+## Load and inspect the data
+
+### Read the CSVs
+
+### Descriptive checks
+
+1. Create a dataset with treated observations and psid controls - the nonexperimental sample.
+2. For each dataset, report means of the covariates by treatment status in a well-formatted table.
+3. Briefly describe differences in sample sizes, covariates, and outcomes in the two samples. Write this as you would in the data section of an economics paper.
+ 
+## Benchmark: experimental ATT in NSW
+
+Treat NSW as an experiment (random assignment inside the NSW dataset).
+
+### Compute the experimental difference in means
+
+Compute:
+
+$$\widehat{ATT}^{exp} = \bar{Y}_1 - \bar{Y}_0$$
+
+using the NSW data only. Use a t-test to test the statistical significance. 
+
+Briefly interpret the result.
+
+### Compare to a regression estimate
+
+Create a well-formatted regression tables with three regressions:
+
+1. Simple regression with no controls.
+2. Regression with demographics but no pre-treatment outcomes.
+3. Regression with demographics and pre-treatment outcomes.
+
+Compare the results in words to the difference in means. 
+
+## Observational comparison
+
+Now use the PSID dataset, which contains treated units plus *observational* controls.
+
+### Naive difference in means
+
+Compute the difference in means in PSID and compare it to the experimental NSW benchmark from Section 2.
+
+### Why does this differ?
+
+In 3–5 sentences, explain why the naive PSID estimate differs from the NSW benchmark.
+
+### Regression
+
+Create a well-formatted regression tables with three regressions:
+
+1. Simple regression with no controls.
+2. Regression with demographics but no pre-treatment outcomes.
+3. Regression with demographics and pre-treatment outcomes.
+
+Compare the results in words to the difference in means.
+
+### Matching
+Create a well-formatted table with the following matching estimates. Estimate the ATT using the `Match` function with the `Matching` package.Set the `BiasAdjust` to `FALSE`.
+
+1. Exact matching on all variables other than pre-treatment outcomes.
+2. Exact matching on all variables and quartiles of pre-treatment outcomes and age.
+3. Nearest neighbor matching.
+4. Nearest neighbor matching with a 0.25 caliper.
+5. Matching on 2 and 3 neighbors with 0.25 caliper.
+
+### Matching with Bias Adjustment
+Create a well-formatted table with the following matching estimates. Estimate the ATT using the `Match` function with the `Matching` package.Set the `BiasAdjust` to `TRUE`.
+
+1. Exact matching on all variables other than pre-treatment outcomes.
+2. Exact matching on all variables and quartiles of pre-treatment outcomes.
+3. Nearest neighbor matching.
+4. Nearest neighbor matching with a 0.25 caliper.
+5. Matching on 2 and 3 neighbors with 0.25 caliper.
+
+Compare the results to to 3.4 and interpret what bias-correction does based on [Abadie & Imbens (2002)](https://www.nber.org/papers/t0283).
+
+## Propensity scores
+
+### Estimate a propensity score model
+
+Estimate a logit model and save the fitted values as the propensity score. Use any variables and 
+interactions that you see fit. Interpret the logit model as it related to casual identification. 
+
+### Propensity score diagnostics
+
+1. Plot histograms (or densities) of $\hat p(X)$ by treatment status.  
+2. Comment on overlap.
+
+### Common support & enforcing overlap
+
+Use two methods to define common support:
+
+1. $\left[\max(\min(\hat p_1),\min(\hat p_0)),\;\min(\max(\hat p_1),\max(\hat p_0))\right]$
+where subscripts indicate treated vs control groups.
+
+2. An additional trimming rule that drops observations with $\hat p(X) < 0.1$ or $\hat p(X) > 0.9$.
+
+Report how many variables are dropped with each rule.
+
+### PS Matching
+Create a well formatted table by matching on the propensity score usig the following specifications.
+
+1. Nearest neighbor matching with no overlap.
+2. Nearest neighbor matching with trimming rule 1.
+3. Nearest neighbor matching with trimming rule 2.
+4. Nearest neighbor matching with trimming rule 1 and a 0.25 caliper.
+
+### PS Regression
+
+Create a well-formatted table with propensity score regression with the following specifications.
+
+1. Regress treat with no controls (baseline with selection bias).
+2. Add the propensity score as a control with no overlap enforced.
+3. Regress with propensity score enforcing overlap rule 1.
+4. Regress with propensity score enforcing overlap rule 1 with additional covariates as controls.
+
+## Extensions
+
+### Genetic Matching
+
+Test out genetic matching in the `Match` package.  Compare the ATT using genetic matching and 
+Mahalanobis matching with both 1 and 2 matches.  Present results in a well-formatted table.
+
+### Pre-processing
+
+Use `MatchIt` to estimate generate weights that you can use to pre-process the data.
+Generate weights using both Mahalanobis distance and genetic matching. Evaluate balance 
+between the original dataset and both pre-processed (weighted) datasets.
+
+### Weighting by the propensity score
+
+## Interpretation
+
+In 4–8 sentences:
+
+- Summarize how well you think the various methods worked to identify causal effects.
+- What factors are important to assess when considering using the CIA?
+- What are key challenges when using matching?
+- How did this assignment affect your intention to use these methods moving forward?
+
