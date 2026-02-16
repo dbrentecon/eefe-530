@@ -22,26 +22,7 @@ params:
   solutions: true
 ---
 
-```{r}
-#| include: false
-# Packages (install if needed)
-library(pacman)
-library(pacman)
-p_load(
-  broom, tidyverse, foreign,psych,
-  ggplot2, ggthemes, ggforce, ggridges,
-  latex2exp, viridis, extrafont, gridExtra,
-  kableExtra, snakecase, janitor,
-  data.table, dplyr,
-  lubridate, knitr,
-  estimatr, here, magrittr, stargazer,
-  fixest,etable,modelsummary,
-  Matching,MatchIt,Hmisc,rgenoud,optmatch
-)
 
-set.seed(530)
-
-```
 
 
 ## Overview {.unnumbered .unlisted}
@@ -76,15 +57,18 @@ Recommended repo structure:
 ```
 
 Write your code inline as shown below
-```{r}
-#| include: true
+
+::: {.cell}
+
+```{.r .cell-code}
 # Example code
 treat.test <- c(1,2,3)
 control.test <- c(0,1,2)
 
 att.test <- mean(treat.test) - mean(control.test)
-
 ```
+:::
+
 ## Load and inspect the data
 
 ### Read the CSVs
@@ -230,4 +214,5 @@ In 4–8 sentences:
 - What factors are important to assess when considering using the CIA?
 - What are key challenges when using matching?
 - How did this assignment affect your intention to use these methods moving forward?
+
 
