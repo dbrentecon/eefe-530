@@ -3,7 +3,7 @@ title: "Lecture 05: Instrumental Variables"
 subtitle: "EEFE 530"
 author: "Daniel Brent"
 format:
-  revealjs:
+  revealjs: 
     css: ../theme/my-css.css
     theme: [default, ../theme/_extensions/grantmcdermott/clean/clean.scss]
     slide-number: true
