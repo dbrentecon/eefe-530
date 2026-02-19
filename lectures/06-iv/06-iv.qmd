@@ -166,32 +166,31 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 
 :::{.smaller}
 
-### 1. Motivation
+### Motivation
 - Endogeneity and omitted variable bias
 - Simultaneity and measurement error
 - Why selection-on-observables may fail
 
----
 
-### 2. Instrumental Variables Framework
+### Instrumental Variables Framework
 - Structural vs. reduced form
 - Wald estimator (binary instrument)
 - 2SLS with multiple instruments
 
 :::
+
 ---
 
 :::{.smaller}
 
-### 3. Identification Assumptions
+### Identification Assumptions
 - Relevance
 - Exclusion restriction
 - Independence
 - Monotonicity (for LATE)
 
----
 
-### 4. Interpretation
+### Interpretation
 - LATE and compliers
 - Comparison to ATE / ATT
 - Policy interpretation
@@ -202,15 +201,13 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 
 :::{.smaller}
 
-### 5. Implementation in R
+### Implementation in R
 - First stage diagnostics
 - Weak instrument tests
 - Clustered SEs
 - `fixest::feols()` IV syntax
 
----
-
-### 6. Applications & Pitfalls
+### Applications & Pitfalls
 - Weak instruments
 - Overidentification tests
 - Threats to exclusion
@@ -250,18 +247,32 @@ By the end of this lecture, you should be able to:
 
 Instrumental variables (and two-stage least squares)
 
-## Upcoming
+### Upcoming
 
-- Problem Set 4 - due 3/3
+Difference in Difference
 
 # Reading
-## Shift-Share/Bartik instruments
-- [Mixtape Ch. 7.8.3]{.orange}
-- [Autor, D. H., Dorn, D., & Hanson, G. H. (2013). The China syndrome: Local labor market effects of import competition in the United States. American economic review, 103(6), 2121-2168.](https://www.aeaweb.org/articles?id=10.1257/aer.103.6.2121)
+## Basics
+- [MHE Ch. 5]{.red}
+- [Mixtape Ch. 9]{.orange}
+- [Effect Ch. 18]{.blue}
 
-- [Goldsmith-Pinkham, P., Sorkin, I., & Swift, H. (2020). Bartik instruments: What, when, why, and how. American Economic Review, 110(8), 2586-2624.](https://www.aeaweb.org/articles?id=10.1257/aer.20181047)
 
-- [Borusyak, K., Hull, P., & Jaravel, X. (2022). Quasi-experimental shift-share research designs. The Review of Economic Studies, 89(1), 181-213.](https://academic.oup.com/restud/article/89/1/181/6294942)
+## New DD developments
+- de Chaisemartin, D'Haultfoeuille (2022)[Two-Way Fixed Effects and Differences-in-Differences with Heterogeneous Treatment Effects: A Survey](https://academic.oup.com/ectj/advance-article/doi/10.1093/ectj/utac017/6604378)
+- Roth, Sant' Anna, Bilinkski, Poe (2023)[What's Trending in Differences-in-Differences? A Synthesis of the Recent Econometrics Literature](https://www.sciencedirect.com/science/article/pii/S0304407623001318)
+- de Chaisemartin, D'Haultfoeuille (2023)[Difference-in-Differences for Simple and Complex Natural Experiments](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4487202)
+- Baker, Larcker, Wang, (2022)[How Much Should We Trust Staggered Difference-In-Differences Estimates?](https://www.sciencedirect.com/science/article/pii/S0304405X22000204)
+- ... and papers cited therein
+
+<!-- # Reading -->
+<!-- ## Shift-Share/Bartik instruments -->
+<!-- - [Mixtape Ch. 7.8.3]{.orange} -->
+<!-- - [Autor, D. H., Dorn, D., & Hanson, G. H. (2013). The China syndrome: Local labor market effects of import competition in the United States. American economic review, 103(6), 2121-2168.](https://www.aeaweb.org/articles?id=10.1257/aer.103.6.2121) -->
+
+<!-- - [Goldsmith-Pinkham, P., Sorkin, I., & Swift, H. (2020). Bartik instruments: What, when, why, and how. American Economic Review, 110(8), 2586-2624.](https://www.aeaweb.org/articles?id=10.1257/aer.20181047) -->
+
+<!-- - [Borusyak, K., Hull, P., & Jaravel, X. (2022). Quasi-experimental shift-share research designs. The Review of Economic Studies, 89(1), 181-213.](https://academic.oup.com/restud/article/89/1/181/6294942) -->
 
 # Research designs
 
@@ -431,7 +442,8 @@ $$
    \hat{\beta}_\text{IV} = \left(\text{Z}'\text{D}\right)^{-1} \left( \text{Z}'\text{Y}\right)
 \end{align}
 $$
---- 
+
+---
 
 If you have no covariates, then
 $$
@@ -516,14 +528,14 @@ there is a third important and related regression:
 the reduced form.
 :::
 
-::: {.fragment}
+---
+
 The **reduced form** regresses the outcome $\text{Y}_{i}$ (LHS of the second stage) on our instrument $\color{#0073e6}{\text{Z}_{i}}$ and covariates $\text{X}_{i}$ (RHS of the first stage).
 $$
 \begin{align}
    \text{Y}_{i} = \pi_1 \color{#0073e6}{\text{Z}_{i}} + \pi_2 \text{X}_{i} + u_i
 \end{align}
 $$
-:::
 
 ::: {.fragment}
 Thus, the reduced form provides a consistent estimate of the causal effect of our instrument on the outcome.
@@ -677,7 +689,7 @@ $$
 
 :::
 
-::: {.smallest}
+::: {.fragment .smallest}
 Credit/thanks go to [Michael Anderson](https://are.berkeley.edu/~mlanderson/ARE_Website/Home.html) via [Ed Rubin](http://edrub.in/) for this example—and much of these notes.
 :::
 
@@ -687,7 +699,7 @@ Credit/thanks go to [Michael Anderson](https://are.berkeley.edu/~mlanderson/ARE_
 **Goal:** *Estimate the effect of blood-pressure medication* on blood pressure.
 
 ::: {.fragment}
-**Challenge: *Selection bias:* Even if treatment reduces blood pressure, selection bias fights against the estimated effect.
+**Challenge:** *Selection bias:* Even if treatment reduces blood pressure, selection bias fights against the estimated effect.
 :::
 
 ::: {.fragment}
@@ -861,7 +873,7 @@ Main points
 
 Thus far, we assumed homogeneous treatment effects.
 
-**Q:** What happens .*when treatment effects are heterogeneous*?
+**Q:** What happens *when treatment effects are heterogeneous*?
 
 # IV + heterogeneity
 
@@ -872,7 +884,7 @@ So far we've discussed two concepts of treatment effects (really 3 if you count 
 
 ::: {.incremental}
 1. **Average treatment effect (ATE):** The average treatment effect for an individual randomly drawn from our sample.
-1. **Average Treatment effect on the treated (ATT]):** The average treatment effect for a *treated* individual
+1. **Average Treatment effect on the treated (ATT):** The average treatment effect for a *treated* individual
 randomly drawn from our sample.
 :::
 
@@ -1058,7 +1070,6 @@ The 2SLS estimator accommodates multiple instruments.
 
 Whether you can find multiple valid instruments is another question.
 
----
 
 # Multiple instruments
 ## Motivation
@@ -1096,7 +1107,7 @@ $$
 :::
 
 # Weak  Instruments
-
+## Weak instruments and the first stage
 Recall how the first stage estimate affects the 2SLS estimate.
 $$
 \begin{align}
@@ -1120,7 +1131,7 @@ Let's look at this with some simulations
 - binary instrument
 - First stage coefficient = 0.5
 - $\beta$ = 2
-- Variation in 2sLS estimation comes from variation in first stage
+- Variation in 2SLS estimation comes from variation in first stage
 - In this setting the length of the interval corresponds to the variation/strength
 of the instrument
 
@@ -1398,7 +1409,7 @@ ggplot(data = tibble(beta_hat, gamma_hat)) +
 
 ---
 
-If the first stage is small and marginally significant (estimate = 0.1, se = 0.05
+If the first stage is small and marginally significant (estimate = 0.1, se = 0.05)
 then a researcher may proceed with the analysis.
 
 However, the distribution for $\widehat{\beta}$ is non normal, and asymptotic normality
@@ -1484,7 +1495,7 @@ the t-statistic
 
 ## `estimatr`
 
-You can implement 2SLS/IV in many ways in .mono[R]. We'll use `estimatr` and `iv_robust()`.
+You can implement 2SLS/IV in many ways in [R]{.mono}. We'll use `estimatr` and `iv_robust()`.
 
 ::: {.fragment}
 First let's create some sample data.
