@@ -1,0 +1,97 @@
+---
+title: "EEFE 530 - Problem Set 4"
+subtitle: "Difference-in-Differences Simulation"
+author: "EEFE 530: Applied Microeconometrics"
+date: "03/15/2026"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+  pdf:
+    pdf-engine: xelatex
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+params:
+  solutions: true
+---
+
+
+## Overview {.unnumbered .unlisted}
+
+This problem set examines new methods using robust to treatment heterogeneity in settings 
+with staggered adoption.  This will be a group exercise where each group is assigned one paper to cover. You will present this in-class on Monday March 15. Your presentation should be no more than 20 minutes.
+
+Group assignments:
+
+1. [Difference-in-Differences with multiple time periods](https://www.sciencedirect.com/science/article/pii/S0304407620303948) & [Estimating dynamic treatment effects in event studies with heterogeneous treatment effects](https://www.sciencedirect.com/science/article/pii/S030440762030378X)
+    - Jieun Hyun, Yuxiao Zhu & Yu Ping Chang (this group has three people and will cover two papers that are pretty similar)
+1. [Revisiting Event-Study Designs: Robust and Efficient Estimation](https://academic.oup.com/restud/article/91/6/3253/7601390)
+    - Jiahui Guo & Chia-Chen Hsu
+1. [Efficient Estimation for Staggered Rollout Designs](https://www.journals.uchicago.edu/doi/abs/10.1086/726581)
+    - Junxian Tang & Xiaofei Wang
+1. [Two-Stage Differences in Differences](https://jrgcmu.github.io/2sdd_gtty.pdf)
+    - Chunyi Zhang & Samyar Darzilarijani
+1. [A Local Projections Approach to Difference-in-Differences](https://onlinelibrary.wiley.com/doi/10.1002/jae.70000)
+    - Jiahi Chen & Chung-Kang Lo
+    
+The links above reference the papers. All the papers have software packages made by the authors 
+or other academics to implement the estimators. 
+
+In the ps4 repository on the public course page there are six simulated datasets:
+
+- `data/data_A.RData`
+- `data/data_B.RData`
+- `data/data_C.RData`
+- `data/data_D.RData`
+- `data/data_E.RData`
+- `data/data_F.RData`
+
+### Submission {.unnumbered .unlisted}
+
+You should submit your presentation before class on canvas or GitHub Classroom.
+Each group member should submit a copy of the presentation. 
+
+Push to GitHub Classroom:
+
+- `ps4_<LAST_NAME>.qmd`
+- rendered output: `submission_<LAST_NAME>.html` (or `submission_<LAST_NAME>.pdf`)
+- any helper files you used (figures, scripts)
+
+Canvas: submit a pdf on Canvas
+
+Write your code inline as shown below
+```{r}
+#| include: true
+# Example code
+treat.test <- c(1,2,3)
+control.test <- c(0,1,2)
+
+att.test <- mean(treat.test) - mean(control.test)
+
+```
+## Explain and present the new method
+Generate slides and present to the class the following topics. 
+
+1. What is the estimator?
+
+1. How does it fix the problem of staggered adoption?
+
+1. What are the assumptions necessary for causal identification?
+
+1. What are pros and cons of the estimator?
+
+## Estimation on the simulated data
+For each simulated dataset conduct the following analysis:
+
+1. Estimate the ATT using TWFE and the new estimator
+
+1. Estimate and plot an event study model using TWFE and the new estimator
+
+1. Describe the differences between the two estimators and evaluate whether the assumptions hold
