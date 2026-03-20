@@ -1,0 +1,70 @@
+---
+title: "EEFE 530 - Problem Set 5"
+subtitle: "Difference-in-Differences Replication"
+author: "EEFE 530: Applied Microeconometrics"
+date: "04/06/2026"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+  pdf:
+    pdf-engine: xelatex
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+params:
+  solutions: true
+---
+
+
+## Overview {.unnumbered .unlisted}
+
+This problem set examines new methods using robust to treatment heterogeneity in settings 
+with staggered adoption.  This will be a group exercise that students will present in-class on Monday April 6th. Your presentation should be no more than 15 minutes. You need to submit a pdf of your document and a pdf or ppt for your presentation on Canvas prior to class. Make sure you have reviewed the notes and papers for 'New Development' lectures (DD-II (Problems) and DD-III (Solutions)).
+
+## Replication/extension
+
+Select a paper from the following list of journals below that was published prior to 2019 (published in 2018 or earlier) or an AI generated paper from [Project APE](https://ape.socialcatalystlab.org/). I strongly recommend finding a paper that has data and code available, but you can recreate data from publicly available sources.  The papers must have a DiD design with either staggered adoption or continuous/multi-level treatment. Please check with me when selecting a paper. Groups cannot select the same paper.  Your document should have 7 **short** sections.
+
+1. Introduce the research question and data (1-2 paragraphs).
+
+2. Describe the identification strategy and necessary assumptions (1-2 paragraphs).
+
+3. Replicate the papers main findings.  You do not need to replicate everything, but the key results should be reproduced. Please check with me if you have questions about what to replicate (3-4 paragraphs).
+
+4. Describe why the identification strategy may be invalid given the new DiD literature (1-2 paragraphs).
+
+5. Generate diagnostic tests from the new literature (e.g. negative weights; 1-2 paragraphs)
+
+6. Replicate the findings with the new methods (3-4) paragraphs.
+
+7. Summarize your findings including whether the main results hold and why or why not.
+
+Journals:
+
+- American Economic Review
+- Journal of Political Economy
+- Econometrica
+- Quarterly Journal of Economics
+- Review of Economic Studies
+- American Economic Journal: Applied Economics
+- American Economic Journal: Economic Policy
+- Review of Economics and Statistics
+- Journal of Finance
+- Review of Financial Studies
+- Journal of Financial Economics
+- Journal of Public Economics
+- Economic Journal
+- Journal of the European Economic Association
+- Journal of the Association of Environmental and Resource Economists
+- Journal of Environmental Economics and Management
+- American Journal of Agricultural Economics
+- Journal of Urban Economics
+- Journal of Labor Economics
+- Journal of Health Economics
