@@ -1088,40 +1088,17 @@ Daniel Brent
 </section>
 <section id="last-time" class="slide level2">
 <h2>Last time</h2>
-<p>DD New developments: Diagnosing problems</p>
+<p>DD New developments: Presentation of new methods</p>
 </section>
 <section id="today" class="slide level2">
 <h2>Today</h2>
 <p>DD New developments: Solutions</p>
-<p>Problem Set 3: Presentations of new methods</p>
 </section>
 <section id="upcoming" class="slide level2">
 <h2>Upcoming</h2>
 <ul>
-<li>Problem Set 4 - DD referee report</li>
+<li>Problem Set 5 - DD referee report/replication</li>
 </ul>
-</section></section>
-<section>
-<section id="problem-set-4" class="title-slide slide level1 center">
-<h1>Problem Set 4</h1>
-
-</section>
-<section id="replicationextension-of-a-dd-paper" class="slide level2">
-<h2>Replication/extension of a DD paper</h2>
-<ol type="1">
-<li><p>Read ‘New Development’ papers.</p></li>
-<li><p>Find a DD paper in a top five journal that comes with data or an AI generated paper from <a href="https://ape.socialcatalystlab.org/">Project APE</a></p></li>
-<li><p>Ensure that the paper has one of the following features</p></li>
-</ol>
-<ul>
-<li><strong>staggered adoption</strong></li>
-<li><strong>continuous or multi-level treatment</strong></li>
-</ul>
-<ol start="4" type="1">
-<li><p>Highlight why the standard assumptions of DD may not hold</p></li>
-<li><p>Diagnose assumptions, and update results as needed</p></li>
-</ol>
-<p><strong>Goal:</strong> Hone your thinking about <strong>causal identification</strong> in practice.</p>
 </section></section>
 <section>
 <section id="reading" class="title-slide slide level1 center">
@@ -1135,6 +1112,7 @@ Daniel Brent
 <li><a href="https://www.tandfonline.com/doi/abs/10.1198/jasa.2009.ap08746">Abadie, Diamond, Hainsmueller (2010)</a></li>
 <li><a href="https://www.aeaweb.org/articles?id=10.1257/jel.20191450">Abadie (2021)</a></li>
 <li><a href="aeaweb.org/articles?id=10.1257/aer.20190159">Arkhangelsky et al. (2021)</a></li>
+<li><a href="https://academic.oup.com/jrsssb/article/84/2/351/7056152">Ben-Michael et al. (2022)</a></li>
 </ul>
 </section></section>
 <section>
@@ -1313,15 +1291,6 @@ E[DID_M] = \delta_S
 </tbody>
 </table>
 <p>Thus the comparison isolates the causal effect of treatment.</p>
-</section>
-<section id="why-this-works" class="slide level2">
-<h2>Why This Works</h2>
-<p>The estimator avoids problematic comparisons because:</p>
-<ul>
-<li>Treated units are <strong>never used as controls for already-treated units.</strong></li>
-<li>Each DID comparison uses groups with <strong>identical treatment status in the pre-period.</strong></li>
-</ul>
-<p>Therefore heterogeneous treatment effects do not generate biased weights.</p>
 </section>
 <section id="key-identification-assumptions" class="slide level2">
 <h2>Key Identification Assumptions</h2>
@@ -2081,6 +2050,42 @@ E\left(\hat{\beta}_h^{LP-DiD}\right)=\sum_{g\neq 0}\omega_{g,h}^{LP-DiD}\tau_h^g
 <li>no negative-weight pathology</li>
 <li>weights depend on sample size and treatment variance</li>
 </ul>
+</section>
+<section id="what-do-the-lp-did-weights-mean" class="slide level2">
+<h2>What do the LP-DiD weights mean?</h2>
+<div class="smallest">
+<p><span class="math display">\[
+\omega_{g,h}^{LP-DiD}
+=
+\frac{N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})}
+{\sum_{g\neq 0} N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})}
+\]</span></p>
+<div class="fragment">
+<ul>
+<li><span class="math inline">\(CCS_{g,h}\)</span> = the <strong>clean control sample</strong> for cohort <span class="math inline">\(g\)</span> at horizon <span class="math inline">\(h\)</span>
+<ul>
+<li>units in cohort <span class="math inline">\(g\)</span> that are newly treated at <span class="math inline">\(p_g\)</span>, and</li>
+<li>control units that are still untreated at <span class="math inline">\(p_g+h\)</span></li>
+</ul></li>
+<li><span class="math inline">\(N_{CCS_{g,h}}\)</span> = the number of observations in that clean comparison set <span class="math inline">\(CCS_{g,h}\)</span>
+<ul>
+<li>bigger clean comparison samples get more weight, all else equal</li>
+</ul></li>
+<li><span class="math inline">\(n_{g,h} \equiv \dfrac{N_g}{N_{CCS_{g,h}}}\)</span>
+<ul>
+<li>share of treated observations inside the clean comparison set for cohort <span class="math inline">\(g\)</span> at horizon <span class="math inline">\(h\)</span></li>
+</ul></li>
+<li><span class="math inline">\(n_{g,h}(1-n_{g,h})\)</span> = the variance of a binary treatment indicator within the clean comparison set
+<ul>
+<li>weights are larger when there is more treatment variation in the clean comparison set</li>
+</ul></li>
+<li><span class="math inline">\(\sum_{g\neq 0} N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})\)</span> = the sum of these terms across all treated cohorts
+<ul>
+<li>normalize weights to sum to one</li>
+</ul></li>
+</ul>
+</div>
+</div>
 </section>
 <section id="equally-weighted-att-and-extensions" class="slide level2">
 <h2>Equally Weighted ATT and Extensions</h2>

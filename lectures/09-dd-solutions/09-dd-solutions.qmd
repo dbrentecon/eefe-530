@@ -165,36 +165,16 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 # Schedule {#schedule}
 ## Last time
 
-DD New developments: Diagnosing problems
+DD New developments: Presentation of new methods
 
 ## Today
 
 DD New developments: Solutions
 
-Problem Set 3: Presentations of new methods
 
 ## Upcoming
 
-- Problem Set 4 - DD referee report
-
-# Problem Set 4 
-
-## Replication/extension of a DD paper         
-
-1. Read 'New Development' papers.
-
-2. Find a DD paper in a top five journal that comes with data or an AI generated paper from [Project APE](https://ape.socialcatalystlab.org/)
-
-3. Ensure that the paper has one of the following features
-
-  - **staggered adoption**
-  - **continuous or multi-level treatment**
-
-4. Highlight why the standard assumptions of DD may not hold
-
-5. Diagnose assumptions, and update results as needed
-
-**Goal:** Hone your thinking about **causal identification** in practice.
+- Problem Set 5 - DD referee report/replication
 
 # Reading
 ## Synthetic Control
@@ -202,6 +182,7 @@ Problem Set 3: Presentations of new methods
 - [Abadie, Diamond, Hainsmueller (2010)](https://www.tandfonline.com/doi/abs/10.1198/jasa.2009.ap08746)
 - [Abadie (2021)](https://www.aeaweb.org/articles?id=10.1257/jel.20191450)
 - [Arkhangelsky et al. (2021)](aeaweb.org/articles?id=10.1257/aer.20190159)
+- [Ben-Michael et al. (2022)](https://academic.oup.com/jrsssb/article/84/2/351/7056152)
 
 # Solutions
 ## Solutions
@@ -367,15 +348,6 @@ For joiners:
 | B | 0 | 0 | control |
 
 Thus the comparison isolates the causal effect of treatment.
-
-## Why This Works
-
-The estimator avoids problematic comparisons because:
-
-- Treated units are **never used as controls for already-treated units.**
-- Each DID comparison uses groups with **identical treatment status in the pre-period.**
-
-Therefore heterogeneous treatment effects do not generate biased weights.
 
 ## Key Identification Assumptions
 ### 1. Common trends for untreated outcomes
@@ -1150,6 +1122,33 @@ So the default estimator is a **variance-weighted ATT**:
 - weights are always positive
 - no negative-weight pathology
 - weights depend on sample size and treatment variance
+
+
+## What do the LP-DiD weights mean?
+
+::: {.smallest}
+$$
+\omega_{g,h}^{LP-DiD}
+=
+\frac{N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})}
+{\sum_{g\neq 0} N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})}
+$$
+
+::: {.fragment}
+- $CCS_{g,h}$ = the **clean control sample** for cohort $g$ at horizon $h$
+  - units in cohort $g$ that are newly treated at $p_g$, and
+  - control units that are still untreated at $p_g+h$
+- $N_{CCS_{g,h}}$ = the number of observations in that clean comparison set $CCS_{g,h}$
+    - bigger clean comparison samples get more weight, all else equal
+- $n_{g,h} \equiv \dfrac{N_g}{N_{CCS_{g,h}}}$
+  - share of treated observations inside the clean comparison set for cohort $g$ at horizon $h$ 
+- $n_{g,h}(1-n_{g,h})$ = the variance of a binary treatment indicator within the clean comparison set
+  - weights are larger when there is more treatment variation in the clean comparison set
+- $\sum_{g\neq 0} N_{CCS_{g,h}}\, n_{g,h}(1-n_{g,h})$ = the sum of these terms across all treated cohorts
+    - normalize weights to sum to one
+    
+:::
+:::
 
 ## Equally Weighted ATT and Extensions
 
