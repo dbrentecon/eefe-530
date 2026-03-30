@@ -1,5 +1,5 @@
 ---
-title: "Lecture 09: Regression Discontinuity"
+title: "Lecture 11: Regression Discontinuity"
 subtitle: "EEFE 530"
 author: "Daniel Brent"
 format:
@@ -34,8 +34,10 @@ p_load(
   kableExtra, snakecase, janitor,
   data.table, dplyr,
   lubridate, knitr,
-  estimatr, here, magrittr, update=,install=T
+  estimatr, here, magrittr,
+  rdrobust
 )
+
 # Define pink color
 blue <- "#0073e6"
 turquoise <- "#20B2AA"
@@ -46,7 +48,7 @@ green <- "#006400"
 grey_light <- "grey70"
 grey_mid <- "grey50"
 grey_dark <- "grey20"
-purple <- "#006400"
+purple <- "#3b3b9a"
 slate <- "#314f4f"
 # Dark slate grey: #314f4f
 # Knitr options
@@ -160,50 +162,6 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 }
 ```
 
-## Table of contents {#toc}
-
-:::: {.columns}
-::: {.column width="50%"}
-#### Admin
-
-1. [Schedule](#schedule)
-
-#### General RD
-
-1. [Setup](#rd-setup)
-2. [Framework](#rd-framework)
-3. [Examples](#rd-examples)
-4. [Sharp *vs.* fuzzy](#sharp-fuzzy)
-
-#### [Sharp RDs](#sharp)
-
-1. [Setup](#sharp-setup)
-2. [(Semi) Formally](#sharp-formal)
-3. [Estimation](#sharp-est)
-4. [Examples](#sharp-ex)
-5. [In practice](#sharp-practice)
-6. [More estimation](#sharp-more-estimation)
-:::
-
-::: {.column width="50%"}
-#### [Fuzzy RDs](#fuzzy)
-
-1. [Setup](#fuzzy-setup)
-2. [As IV](#fuzzy-iv)
-3. [Somewhat formally](#fuzzy-formal)
-
-#### [Graphical analysis](#graph)
-
-1. [General](#graph-gen)
-2. [Outcomes by $\text{X}_{i}$](#graph-outcome)
-3. [Covariates by $\text{X}_{i}$](#graph-cov)
-4. [Density of $\text{X}_{i}$](#graph-run)
-:::
-::::
-
----
-<span id="schedule"></span>
-
 # Schedule
 
 ## Last time
@@ -223,11 +181,10 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 - Replication and extension DID
 - Problem set (RD)
 
----
 # Readings
 
 ## Regression Discontinuity
-- *MHE* Ch. 6
+- [*MHE* Ch. 6]{.red}
 - [Mixtape Ch. 6]{.orange}
 - [Effect Ch. 20]{.dblue}
 - Imbens and Lemieux (2008), [Regression discontinuity designs: A guide to practice](https://www.sciencedirect.com/science/article/pii/S0304407607001091)
@@ -235,19 +192,22 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 - Cattaneo and Titiunik  (2022), [Regression Discontinuity Designs](https://cattaneo.princeton.edu/papers/Cattaneo-Titiunik_2022_ARE.pdf)
 - [Robust data driven RD - Cattaneo and coauthors](https://rdpackages.github.io/)
 
+## Regression Discontinuity: Application
+- [Chen et al. (2013)](https://www.pnas.org/doi/10.1073/pnas.1616784114)
+- [Gelman Blog #1](https://statmodeling.stat.columbia.edu/2013/08/05/evidence-on-the-impact/)
+- [Gelman Blog #2](https://statmodeling.stat.columbia.edu/2013/08/07/i-doubt-they-cheated/)
+- [Gelman & Imben (2018)](https://www.tandfonline.com/doi/full/10.1080/07350015.2017.1366909)
+- [Chen et al. (2018)](https://www.pnas.org/doi/10.1073/pnas.1300018110)
+- [Gelman Blog #3](https://statmodeling.stat.columbia.edu/2018/08/02/38160/)
 
----
+
 # Regression Discontinuity
-
----
-
-<span id="rd-setup"></span>
 ## Setup
 
 We're still in the game of estimating the effect of a potentially endogenous binary treatment $\text{D}_{i}$ on an outcome $\text{Y}_{i}$.
 
 
-[Regression discontinuity]{.attn} ([RD]{.attn}) offers a particularly clear/clean research design based upon an arbitrary threshold (the *discontinuity*).
+[Regression discontinuity]{.hi-slate} ([RD]{.hi-slate}) offers a particularly clear/clean research design based upon an arbitrary threshold (the *discontinuity*).
 
 
 That said, most RDs boil down to an implementation of IV.
@@ -255,12 +215,9 @@ That said, most RDs boil down to an implementation of IV.
 
 In addition, while RD very popular in modern applied econometrics there are some important limitations.
 
----
-<span id="rd-framework"></span>
 ## Our framework
 
 Back to our potential-outcome framework.
-
 
 We want to know the effect of $\text{D}_{i}$ on $\text{Y}_{i}$.
 $$
@@ -272,22 +229,17 @@ $$
 
 [New:]{.hi} Suppose $\text{D}_{i}$ is determined[[*]{.dblue}]{.super} by whether some variable $\text{X}_{i}$ crosses a threshold $c$ (the discontinuity).
 
+The variable $\text{X}_{i}$ need not be randomly assigned—we will assume it is not (_i.e._, $\text{X}_{i}$ correlates with $\text{Y}_{0i}$ and $\text{Y}_{1i}$).
+
+We will assume that $\text{Y}_{0i}$ and $\text{Y}_{1i}$ vary smoothly in $\text{X}_{i}$.
+
 ::: {.footnote}
 [*]{.dblue} At least in part.
 :::
 
-
-The variable $\text{X}_{i}$ need not be randomly assigned—we will assume it is not (_i.e._, $\text{X}_{i}$ correlates with $\text{Y}_{0i}$ and $\text{Y}_{1i}$).
-
-
-We will assume that $\text{Y}_{0i}$ and $\text{Y}_{1i}$ vary smoothly in $\text{X}_{i}$.
-
----
-<span id="rd-examples"></span>
 ## Examples
 
-We often apply regression-discontinuity designs in setting with some arbitrary threshold embeded within some bureaucratic decision.
-
+We often apply regression-discontinuity designs in setting with some arbitrary threshold embedded within some bureaucratic decision.
 
 - An elector candidate wins if her vote share exceeds her competitors.
 - A policy holds based on some strict income threshold.
@@ -298,37 +250,26 @@ We often apply regression-discontinuity designs in setting with some arbitrary t
 - Fifteen-percent discount at Sizzler if your age exceeds 60.
 - Counties with PM[2.5]{.sub} > 35 μg/m[3]{.super} are *out of attainment*.
 
-
 In some cases, "treatment" is definite once we exceed the threshold.
----
-<span id="sharp-fuzzy"></span>
+
 ## Sharp *vs.* fuzzy
 
+::: {.smaller}
 We distinguish RDs by whether the threshold automatically assigns treatment or not.
 
+In [sharp RDs]{.hi-slate}, individuals move from control to treatment when their $\text{X}_{i}$ passes our threshold $c$, _i.e._, $\text{D}_{i}$ switches from 0 to 1 when $\text{X}_{i}$ moves across $c$.
 
-In [sharp RDs]{.attn}, individuals move from control to treatment when their $\text{X}_{i}$ passes our threshold $c$
+[Ex:]{.hi-slate} a politician wins an election when the difference between her vote share and her competitor's vote share exceeds zero.
 
-, _i.e._, $\text{D}_{i}$ switches from 0 to 1 when $\text{X}_{i}$ moves across $c$.
+In [fuzzy RDs]{.hi-slate}, the *probability of treatment* $\mathop{\text{Pr}}\left( \text{D}_{i}=1 \right)$ discontinuously jumps at the threshold $c$, but it does not move from 0 to 1.
 
+[Ex:]{.hi-slate} crossing some GRE threshold discontinuously increases your chances of getting into some grad schools (but doesn't guarantee admittance). Or your chances of getting tenure jumps when you have a certain number of publications.
+:::
 
-[_E.g._,]{.slate} a politician wins an election when the difference between her vote share and her competitor's vote share exceeds zero.
-
-
-In [fuzzy RDs]{.attn}, the *probability of treatment* $\mathop{\text{Pr}}\left( \text{D}_{i}=1 \right)$ discontinuously jumps at the threshold $c$, but it does not move from 0 to 1.
-
-
-[_E.g._,]{.slate} crossing some GRE threshold discontinuously increases your chances of getting into some grad schools (but doesn't guarantee admittance). Or your chances of getting tenure jumps when you have a certain number of publications.
----
 # Sharp RDs
-
----
-<span id="sharp"></span>
-<span id="sharp-setup"></span>
 ## Setup
 
-With [sharp regression discontinuity]{.attn}, the probability of treatment changes from 0 to 1 as $\text{X}_{i}$ moves across threshold $c$.
-
+With [sharp regression discontinuity]{.hi-slate}, the probability of treatment changes from 0 to 1 as $\text{X}_{i}$ moves across threshold $c$.
 
 Thus, treatment status totally depends upon whether $\text{X}_{i}\geq c$, _i.e._,
 
@@ -339,30 +280,25 @@ $$
 $$
 
 
-To estimate the causal effect of $\text{D}_{i}$ on $\text{Y}_{i}$, we [compare the mean]{.dblue} of $\text{Y}_{i}$ [just *above* the threshold to the mean]{.dblue} of $\text{Y}_{i}$ [just *below* the threshold]{.dblue}.
+To estimate the causal effect of $\text{D}_{i}$ on $\text{Y}_{i}$, we [compare the mean]{.dblue} of $\text{Y}_{i}$ [just *above* the threshold to the mean]{.dblue} of $\text{Y}_{i}$ [just *below* the threshold]{.green}.
 
 Our identifying assumption is that observations just above and just below the threshold are very similar.  Therefore, an observation just below the threshold serves as a valid counterfactual for an observation just above the threshold.
 
----
-<span id="sharp-formal"></span>
 ## More formally
 
 We can write the comparison of means at the threshold as
 
 $\lim_{x\downarrow c} \mathop{E}\left[ \text{Y}_{i}\mid \text{X}_{i} = x \right] - \lim_{x\uparrow c} \mathop{E}\left[ \text{Y}_{i}\mid \text{X}_{i} = x \right]$
 
-
 ::: {.pad-left}
 $=\lim_{x\downarrow c} \mathop{E}\left[ \color{#0073e6}{\text{Y}_{1i}}\mid \text{X}_{i} = x \right] - \lim_{x\uparrow c} \mathop{E}\left[ \color{#006400}{\text{Y}_{0i}}\mid \text{X}_{i} = x \right]$
 :::
-
 
 ::: {.pad-left}
 $=\tau_\text{SRD}$
 :::
 
-
-[Assumption]{.note} $\mathop{E}\left[ \color{#0073e6}{\text{Y}_{1i}} \mid \text{X}_{i} = x\right]$ and $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = x \right]$ are continuous in $x$.
+[Assumption]{.hi-slate} $\mathop{E}\left[ \color{#0073e6}{\text{Y}_{1i}} \mid \text{X}_{i} = x\right]$ and $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = x \right]$ are continuous in $x$.
 
 
 ::: {.pad-left}
@@ -371,8 +307,8 @@ $\implies \tau_\text{SRD} = \mathop{E}\left[ \color{#0073e6}{\text{Y}_{1i}} - \c
 
 
 _I.e._, Because we don't observe $\color{#006400}{\text{Y}_{0i}}$ for treated individuals, we extrapolate $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = c - \varepsilon \right]$ to $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = x + \varepsilon \right]$ for small $\varepsilon$.
----
-<span id="sharp-est"></span>
+
+
 ## Estimation
 
 Thus, we estimate
@@ -385,8 +321,8 @@ as the difference between two regression functions estimated "near" $c$.
 
 
 We must stay "near" $c$ to minimize the bias from extrapolating $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = c - \varepsilon \right]$ to $\mathop{E}\left[ \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} = c + \varepsilon \right]$ (and assuming continuity).
+
 ---
-<span id="sharp-ex"></span>
 
 [Ex.]{.slate} Is there an effect of a political party winning an election on that party's likelihood of winning the following election?
 
@@ -398,7 +334,6 @@ Is there a benefit of incumbency (at the party level)?[[*]{.dblue}]{.super}
 
 ---
 
----
 Let's start with $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]}$
 
 ```{R, s0, include = F}
@@ -423,8 +358,9 @@ scale_y_continuous(
 ) +
 theme_pander(base_size = 20, base_family = "Arial")
 ```
+
 ---
-count: false
+
 Let's start with $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]}$ and $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}$.
 
 ```{R, s2, echo = F, cache = T}
@@ -443,7 +379,9 @@ scale_y_continuous(
 ) +
 theme_pander(base_size = 20, base_family = "Arial")
 ```
+
 ---
+
 You only win an election if your [margin of victory exceeds zero]{.hi-slate}.
 
 ```{R, s3, echo = F, cache = T}
@@ -485,7 +423,9 @@ scale_y_continuous(
 ) +
 theme_pander(base_size = 20, base_family = "Arial")
 ```
+
 ---
+
 $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]} - \color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]}$ [at the discontinuity]{.hi-slate} gives $\color{#FFA500}{\tau_\text{SRD}}$.
 
 ```{R, s4, echo = F, cache = T}
@@ -532,6 +472,7 @@ scale_y_continuous(
 ) +
 theme_pander(base_size = 20, base_family = "Arial")
 ```
+
 ---
 
 Real data are a bit trickier. We must estimate $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}$ and $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]}$.
@@ -597,16 +538,18 @@ theme(legend.position = "none")
 ```{R, s5, echo = F, cache = T}
 gg_srd
 ```
+
 ---
 
-[Questions]{.note}
+[Questions]{.hi-slate}
 
 1. How should we estimate $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]}$ and $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]}$?
 
-2. How much data should we use—_i.e._, what is the right [bandwidth]{.attn} size?
+2. How much data should we use—_i.e._, what is the right [bandwidth]{.hi-slate} size?
 
 ---
-[Option 1a]{.note} Linear regression with constant slopes (and all data)
+
+[Option 1a]{.hi-slate} Linear regression with constant slopes (and all data)
 
 ```{R, s6, echo = F, cache = T}
 lm_tmp <- lm(y ~ x + I(x>0), data = srd_df)
@@ -630,21 +573,25 @@ stat_function(
 )
 s6
 ```
+
 ---
-[Option 1a]{.note} Linear regression with constant slopes (and all data)
+
+[Option 1a]{.hi-slate} Linear regression with constant slopes (and all data)
 
 ```{R, s7, echo = F, cache = F,out.width='90%', out.height='90%'}
-# s6 +
-# geom_errorbar(
-#   data = tibble(x = 0, y0 = lm_fun(-1e-3), y1 = lm_fun(1e-3)),
-#   aes(x = x, ymin = y0, ymax = y1),
-#   color = orange, size = 1.5, width = 0.07
-# )
-include_graphics('09-RD_files/figure-html/s7-1.png')
+s6 +
+geom_errorbar(
+  data = tibble(x = 0, y0 = lm_fun(-1e-3), y1 = lm_fun(1e-3)),
+  aes(x = x, ymin = y0, ymax = y1),
+  color = orange, size = 1.5, width = 0.07
+)
+# include_graphics('lectures/11-rd/inputs/s7-1.png')
 
 ```
+
 ---
-[Option 1b]{.note} Linear regression with constant slopes; limited to +/- 50%.
+
+[Option 1b]{.hi-slate} Linear regression with constant slopes; limited to +/- 50%.
 
 ```{R, s8, echo = F, cache = T}
 lm_tmp <- lm(y ~ x + I(x>0), data = srd_df %>% filter(abs(x) < 0.5))
@@ -672,8 +619,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 2a]{.note} Linear regression with differing slopes (and all data)
+
+[Option 2a]{.hi-slate} Linear regression with differing slopes (and all data)
 
 ```{R, s9, echo = F, cache = T}
 lm_tmp <- lm(y ~ x * I(x>0), data = srd_df)
@@ -701,8 +650,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 2b]{.note} Linear regression with differing slopes; limited to +/- 50%.
+
+[Option 2b]{.hi-slate} Linear regression with differing slopes; limited to +/- 50%.
 
 ```{R, s10, echo = F, cache = T}
 lm_tmp <- lm(y ~ x * I(x>0), data = srd_df %>% filter(abs(x) < 0.5))
@@ -730,8 +681,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 2c]{.note} Linear regression with differing slopes; limited to +/- 25%.
+
+[Option 2c]{.hi-slate} Linear regression with differing slopes; limited to +/- 25%.
 
 ```{R, s11, echo = F, cache = T}
 lm_tmp <- lm(y ~ x * I(x>0), data = srd_df %>% filter(abs(x) < 0.25))
@@ -759,8 +712,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 3]{.note} Differing quadratic regressions (limited to +/- 50%).
+
+[Option 3]{.hi-slate} Differing quadratic regressions (limited to +/- 50%).
 
 ```{R, s12, echo = F, cache = T}
 lm_tmp <- lm(y ~ poly(x,2) * I(x>0), data = srd_df %>% filter(abs(x) < 0.5))
@@ -788,8 +743,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 4a]{.note} Differing local (LOESS) regressions (limited to +/- 50%).
+
+[Option 4a]{.hi-slate} Differing local (LOESS) regressions (limited to +/- 50%).
 
 ```{R, s13, echo = F, cache = T}
 lm_tmp <- loess(y ~ x * I(x>0), data = srd_df %>% filter(abs(x) < 0.5))
@@ -817,8 +774,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Option 4b]{.note} Differing local (LOESS) regressions (all data).
+
+[Option 4b]{.hi-slate} Differing local (LOESS) regressions (all data).
 
 ```{R, s14, echo = F, cache = T}
 lm_tmp <- loess(y ~ x * I(x>0), data = srd_df)
@@ -846,8 +805,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-[Note]{.note} Functional form can be very important.
+
+[Note:]{.hi-slate} Functional form can be very important.
 
 ```{R, s15a, echo = F, cache = T}
 # No effect
@@ -884,9 +845,10 @@ scale_color_manual(values = c(green, blue)) +
 theme_pander(base_size = 20, base_family = "Arial") +
 theme(legend.position = "none")
 ```
+
 ---
-count: false
-[Note]{.note} Functional form can be very important.
+
+[Note:]{.hi-slate} Functional form can be very important.
 
 ```{R, s15b, echo = F, cache = T}
 ggplot() +
@@ -914,9 +876,10 @@ scale_color_manual(values = c(green, blue)) +
 theme_pander(base_size = 20, base_family = "Arial") +
 theme(legend.position = "none")
 ```
+
 ---
-count: false
-[Note]{.note} Functional form can be very important.
+
+[Note:]{.hi-slate} Functional form can be very important.
 
 ```{R, s15c, echo = F, cache = T}
 ggplot() +
@@ -960,9 +923,10 @@ stat_function(
   size = 1.5
 )
 ```
+
 ---
-count: false
-[Note]{.note} Functional form can be very important.
+
+[Note:]{.hi-slate} Functional form can be very important.
 
 ```{R, s15d, echo = F, cache = T}
 ggplot() +
@@ -1011,9 +975,10 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
-count: false
-[Note]{.note} Functional form can be very important.
+
+[Note:]{.hi-slate} Functional form can be very important.
 
 ```{R, s15e, echo = F, cache = T}
 ggplot() +
@@ -1062,7 +1027,9 @@ geom_errorbar(
   color = orange, size = 1.5, width = 0.07
 )
 ```
+
 ---
+
 The continuity of $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i}\mid \text{X}_{i} = x\right]}$ (in $x$) is also very important. No sorting.
 
 ```{R, s16, echo = F, cache = T}
@@ -1086,11 +1053,9 @@ scale_y_continuous(
 ) +
 theme_pander(base_size = 20, base_family = "Arial")
 ```
----
-# Sharp RDs
 
----
-<span id="sharp-practice"></span>
+
+# Sharp RDs
 ## In practice
 
 [Gelman and Imbens (2018)](https://amstat.tandfonline.com/doi/abs/10.1080/07350015.2017.1366909) on functional form:
@@ -1099,94 +1064,76 @@ theme_pander(base_size = 20, base_family = "Arial")
 
 
 See [Imbens and Kalyanaraman (2012)](https://academic.oup.com/restud/article-abstract/79/3/933/1533189) for optimal bandwidth selection as well as Calonico et al ([2015](https://onlinelibrary.wiley.com/doi/abs/10.3982/ECTA11757);[2020](https://academic.oup.com/ectj/advance-article/doi/10.1093/ectj/utz022/5625071))
----
-<span id="sharp-more-estimation"></span>
+
+
 ## Estimation
 
 1. [Trim data]{.hi} to a reasonable[[*]{.dblue}]{.super} window around the threshold $c$.
-
 
 2. [Recode]{.hi} $\color{#0073e6}{\text{X}_{i}}$ (the "forcing variable") as deviation from $c$, *i.e.*, $\widetilde{\text{X}}_i = \text{X}_{i} - c$
   - $\widetilde{\text{X}}_{i} = 0$ if $\text{X}_{i}=c$
   - $\widetilde{\text{X}}_{i} < 0$ if $\text{X}_{i}<c$ and thus $\text{D}_{i}=0$
   - $\widetilde{\text{X}}_{i} > 0$ if $\text{X}_{i}>c$ and thus $\text{D}_{i}=1$
 
-
 3. Determine a model to [estimate]{.hi} $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{i} \mid \widetilde{\text{X}}_i \right]}$ for $\widetilde{\text{X}}_{i}$ above and below 0
   - Linear with common slopes for $\mathop{E}\left[ \text{Y}_{i}\mid \widetilde{\text{X}}_i < 0 \right]$ and $\mathop{E}\left[ \text{Y}_{i}\mid \widetilde{\text{X}}_i > 0 \right]$
   - Linear/quadratic/polynomial with differing slopes
-  - LOESS, kernel regression, *etc.*
-  
+  - LOESS, kernel regression, *etc.*<br>
 [[*]{.dblue} There is a lot of discussion on what is "reasonable".]{.footnote}
----
+
 ## Estimation: Linear, common slope
 
-[Assumptions]{.note}
+[Assumptions]{.hi-slate}
+
 1. $\color{#006400}{\mathop{E}\left[\text{Y}_{0i} | \text{X}_{i} = x\right]}$ is linear in $x$, *i.e.*, $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]} = \color{#006400}{\alpha + \beta \text{X}_{i}}$
-2. Treatment effect does not depend upon $\text{X}_{i}$, *i.e.*, $\mathop{E}\left[ \text{Y}_{1i} - \text{Y}_{0i} \mid \text{X}_{i} \right] = \tau$
-
+2. Treatment effect does not depend upon $\text{X}_{i}$, *i.e.*, $\mathop{E}\left[ \text{Y}_{1i} - \text{Y}_{0i} \mid \text{X}_{i} \right] = \tau$ <br>
 where (1) comes from linearity and (2) comes from common slopes.
-
 
 $\implies \color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]} = \tau + \color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]} = \tau + \color{#006400}{\alpha + \beta \text{X}_{i}}$
 
+---
+
+$\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]} = \tau + \color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]} = \tau + \color{#006400}{\alpha + \beta \text{X}_{i}}$
 
 Recall our definition of $\text{Y}_{i} = \text{D}_{i} \color{#0073e6}{\text{Y}_{1i}} + (1-\text{D}_{i}) \color{#006400}{\text{Y}_{0i}}$.
 
+$\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right] = \text{D}_{i} \color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i}\mid \text{X}_{i} \right]} + (1- \text{D}_{i})\color{#006400}{\mathop{E}\left[ \text{Y}_{0i}\mid \text{X}_{i} \right]}$
 
-$\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right] =$
+$\quad = \alpha + \tau \text{D}_{i} + \beta \text{X}_{i}$
 
- $\text{D}_{i} \color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i}\mid \text{X}_{i} \right]} + (1- \text{D}_{i})\color{#006400}{\mathop{E}\left[ \text{Y}_{0i}\mid \text{X}_{i} \right]}$
+$= \alpha + \tau \text{D}_{i} + \beta \left(\widetilde{\text{X}}_{i} + c\right)$
 
-<br> $\quad = \alpha + \tau \text{D}_{i} + \beta \text{X}_{i}$
+$= \widetilde{\alpha} + \tau \text{D}_{i} + \beta \widetilde{\text{X}}_{i}$
 
- $= \alpha + \tau \text{D}_{i} + \beta \left(\widetilde{\text{X}}_{i} + c\right)$
+which we can estimate by regressing $\text{Y}_{i}$ on $\text{D}_{i}$ and $\widetilde{\text{X}}_{i}$.
 
- $= \widetilde{\alpha} + \tau \text{D}_{i} + \beta \widetilde{\text{X}}_{i}$
-
-<br> which we can estimate by regressing $\text{Y}_{i}$ on $\text{D}_{i}$ and $\widetilde{\text{X}}_{i}$.
----
-<span id="srd-linear-diff"></span>
 ## Estimation: Linear, differing slopes
 
-[Assumption]{.note} $\color{#006400}{\mathop{E}\left[\text{Y}_{0i} | \text{X}_{i} = x\right]}$ and $\color{#0073e6}{\mathop{E}\left[\text{Y}_{1i} | \text{X}_{i} = x\right]}$ are linear in $x$, *i.e.*, $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]} = \color{#006400}{\alpha_0 + \beta_0 \text{X}_{i}}$ and $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]} = \color{#0073e6}{\alpha_1 + \beta_1 \text{X}_{i}}$
+:::{.smaller}
+[Assumption]{.hi-slate} 
+$\color{#006400}{\mathop{E}\left[\text{Y}_{0i} | \text{X}_{i} = x\right]}$ and $\color{#0073e6}{\mathop{E}\left[\text{Y}_{1i} | \text{X}_{i} = x\right]}$ are linear in $x$, *i.e.*, $\color{#006400}{\mathop{E}\left[ \text{Y}_{0i} \mid \text{X}_{i} \right]} = \color{#006400}{\alpha_0 + \beta_0 \text{X}_{i}}$ and $\color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i} \mid \text{X}_{i} \right]} = \color{#0073e6}{\alpha_1 + \beta_1 \text{X}_{i}}$
 
 Now treatment effects can vary with $\text{X}_{i}$.
 
-
 $\implies \mathop{E}\left[\color{#0073e6}{\text{Y}_{1i}} - \color{#006400}{\text{Y}_{0i}} \mid \text{X}_{i} \right] = \left( \alpha_1 - \alpha_0 \right) + \left( \beta_1 - \beta_0 \right)\text{X}_{i}$
 
+$\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right] = \text{D}_{i} \color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i}\mid \text{X}_{i} \right]} + (1- \text{D}_{i})\color{#006400}{\mathop{E}\left[ \text{Y}_{0i}\mid \text{X}_{i} \right]}$
 
-$\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right]$
-
- $=\text{D}_{i} \color{#0073e6}{\mathop{E}\left[ \text{Y}_{1i}\mid \text{X}_{i} \right]} + (1- \text{D}_{i})\color{#006400}{\mathop{E}\left[ \text{Y}_{0i}\mid \text{X}_{i} \right]}$
-
-<br>
  $\color{#ffffff}{\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right]}= \color{#006400}{\alpha_0 + \beta_0 \text{X}_{i}} + (\color{#0073e6}{\alpha_1} - \color{#006400}{\alpha_0})\text{D}_{i} + (\color{#0073e6}{\beta_1} - \color{#006400}{\beta_0})\text{D}_{i}\text{X}_{i} \color{#ffffff}{\bigg|}$
 
-<br>
  $\color{#ffffff}{\mathop{E}\left[ \text{Y}_{i} \mid \text{X}_{i},\,\text{D}_{i} \right]}= \widetilde{\alpha} + \beta_0 \widetilde{\text{X}}_{i} + \tau \text{D}_{i} + \widetilde{\beta}\text{D}_{i}\widetilde{\text{X}}_{i}$
-
 
 $\tau$ is the LATE at $\widetilde{\text{X}}_{i} = 0$ $\left(\text{X}_{i}=c\right)$.
 
  Estimate: Regress $\text{Y}_{i}$ on $\widetilde{\text{X}}_{i}$, $\text{D}_{i}$, [and]{.it} $\text{D}_{i}\widetilde{\text{X}}_{i}$.
----
+:::
 
 # Fuzzy RDs
-
----
-<span id="fuzzy"></span>
-<span id="fuzzy-setup"></span>
 ## Setup
 
-As with their sharp-RD relatives, [fuzzy RDs]{.attn} take advantage of a discontinuous change in treatment assignment across some threshold $c$.
+As with their sharp-RD relatives, [fuzzy RDs]{.hi-slate} take advantage of a discontinuous change in treatment assignment across some threshold $c$.
 
-
-In a [fuzzy regression discontinuity]{.attn}, the *probability* of treatment changes discontinuously as $\text{X}_{i}$ crosses $c$
-
-, but it is no longer deterministic.
-
+In a [fuzzy regression discontinuity]{.hi-slate}, the *probability* of treatment changes discontinuously as $\text{X}_{i}$ crosses $c$, but it is no longer deterministic.
 
 Formally,
 $$
@@ -1196,19 +1143,18 @@ $$
 $$
 
 [*Ex.*,]{.slate} Exceeding a minimum GRE requirement for graduate school.
----
+
+
 ## Threshold effects
 
 We now have **two effects** of $\text{X}_{i}$ crossing our threshold $c$.
 
-
-1. The effect of $\text{X}_{i}$ crossing $c$ [on our outcome]{.dblue}
+1. The effect of $\text{X}_{i}$ crossing $c$ [on our outcome]{.purple}
 $$
 \begin{align}
   \color{#3b3b9a}{\lim_{x\downarrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right] - \lim_{x\uparrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right]}
 \end{align}
 $$
-
 
 1. The effect of $\text{X}_{i}$ crossing $c$ [on the probability of treatment]{.turquoise}
 $$
@@ -1217,15 +1163,14 @@ $$
 \end{align}
 $$
 
-
-The treatment effect defined by a fuzzy RD is the ratio of ([1]{.blue}) to ([2]{.turquoise})
+The treatment effect defined by a fuzzy RD is the ratio of ([1]{.purple}) to ([2]{.turquoise})
 $$
 \begin{align}
   \tau_\text{FRD}  = \dfrac{\color{#3b3b9a}{\lim_{x\downarrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right] - \lim_{x\uparrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right]}}{\color{#20B2AA}{\lim_{x\downarrow c} \mathop{E}\left[\text{D}_{i}\mid \text{X}_{i} = x\right] - \lim_{x\uparrow c} \mathop{E}\left[\text{D}_{i}\mid \text{X}_{i} = x\right]}}
 \end{align}
 $$
----
-<span id="fuzzy-iv"></span>
+
+
 ## An old friend
 
 This definition of the fuzzy-RD treatment effect
@@ -1238,37 +1183,39 @@ should remind you of something
 
 —[IV]{.hi-slate}, where $\text{Z}_{i} = \mathbb{I}\left\{ \text{X}_{i}\geq c \right\}$.
 
-
 Accordingly, fuzzy RDs are going to have the [same requirements and interpretation as IV]{.hi-slate}.
----
-<span id="fuzzy-formal"></span>
+
 ## More formally
 
 Let $\text{D}_{i}\left( x^* \right)$ denote the [potential treatment status]{.hi-slate} of $i$ [with threshold]{.hi-slate} $\color{#314f4f}{x^*}$.
 
 Why write potential treatment status $\text{D}_{i}$ a function of the threshold?
 
-
+:::{.fragment}
 Changing the threshold (*e.g.*, voting age) generally makes more sense than changing $\text{X}_{i}$ (*e.g.*, age).[[*]{.dblue}]{.super}
+:::
+
+:::{.fragment}
+*I.e.*, changing the threshold changes treatment statuses at the margin.
+:::
+
+:::{.fragment}
+[Assumption]{.hi-slate} $\text{D}_{i}\left(x^*\right)$ is non-increasing in $x^*$ at $x^*=c$.
+:::
+
+:::{.fragment}
+This is our monotonicity assumption for fuzzy RDs.
+
+If we raise $x^*$ from $c$ to $c+\epsilon$, no one joins treatment—no defiers.
 
 ::: {.footnote}
 [*]{.dblue} This observation/motivation can help with inference.
 :::
+:::
 
-
-*I.e.*, changing the threshold changes treatment statuses at the margin.
-
-
-[Assumption]{.note} $\text{D}_{i}\left(x^*\right)$ is non-increasing in $x^*$ at $x^*=c$.
-
-This is our monotonicity assumption for fuzzy RDs.
-
- If we raise $x^*$ from $c$ to $c+\epsilon$, no one joins treatment—no defiers.
-
----
 ## Compliance
 
-Our [compliers]{.attn} in this setting are individuals such that
+Our [compliers]{.hi-slate} in this setting are individuals such that
 
 $$
 \begin{align}
@@ -1277,69 +1224,50 @@ $$
 \end{align}
 $$
 
+- [compliers]{.hi-slate} are only treated when $x^*$ (the threshold) is *below* their $\text{X}_{i}$.
+  - *e.g.* a student is accepted only because their GRE scores were above some threshold (700), otherwise they would have been rejected.
 
-*i.e.*, [compliers]{.attn} are only treated when $x^*$ (the threshold) is *below* their $\text{X}_{i}$.
-
-*e.g.* a student is accepted only because their GRE scores were above some threshold (700), otherwise they would have been rejected.
-
-
-Back to the fuzzy RD treatment effect
-
+::: {.fragment}
 $\tau_\text{FRD} = \dfrac{\lim_{x\downarrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right] - \lim_{x\uparrow c} \mathop{E}\left[\text{Y}_{i}\mid \text{X}_{i} = x\right]}{\lim_{x\downarrow c} \mathop{E}\left[\text{D}_{i}\mid \text{X}_{i} = x\right] - \lim_{x\uparrow c} \mathop{E}\left[\text{D}_{i}\mid \text{X}_{i} = x\right]}$
+:::
 
-
+:::{.fragment}
 $\color{#ffffff}{\tau_\text{FRD}}= \mathop{E}[ \color{#0073e6}{\text{Y}_{1i}} - \color{#006400}{\text{Y}_{0i}} | i$ is a complier and $\text{X}_{i}=c$.
 
-
 Thus, $\tau_\text{FRD}$ can be a *very local* LATE.
----
-# Graphical analysis
+:::
 
----
-<span id="graph"></span>
-<span id="graph-gen"></span>
+
+# Graphical analysis
 ## General
 
 [RD analyses hinge on their graphical analyses.]{.hi-slate}
 
 If the discontinuity is not graphically apparent, most people are not going to care about the results of a few tortured regressions.
 
-
 You're arguing you know that treatment assignment changes across the threshold. If your reader/viewer cannot see it, they're likely not going to believe your regression tables.
-
 
  This skepticism may be well founded. We know RDs are sensitive to functional form—and researchers have been known to *p-hack*.
 
----
 ## Three figures
 
-Most RD analyses will have some subset of three types of figures.
+Most RD analyses will have some subset of three (of four) types of figures.
 
 1. [Outcomes]{.hi-slate} by the running/forcing variable $\left( \text{X}_{i} \right)$
+- Do we observe a treatment effect across the discontinuity?
 
-<br>[Do we observe a treatment effect across the discontinuity?]{.it}
+2. [Treatment]{.hi-slate} by the running/forcing variable (fuzzy RD only) $\left( \text{X}_{i} \right)$
+- Does the discontinuity in fact change the probability of treatment?
 
+3. [Covariates]{.hi-slate} by the running/forcing variable $\left( \text{X}_{i} \right)$
+- Are covariates smooth/balanced across the discontinuity?
 
-  1a. [Treatment]{.hi-slate} by the running/forcing variable (fuzzy RD only) $\left( \text{X}_{i} \right)$
+4. [Density]{.hi-slate} of running/forcing variable $\left( \text{X}_{i} \right)$
+- Is there evidence of sorting into treatment (across the threshold)?
 
-<br>[Does the discontinuity in fact change the probability of treatment?]{.it}
-
-
-1. [Covariates]{.hi-slate} by the running/forcing variable $\left( \text{X}_{i} \right)$
-
-<br>[Are covariates smooth/balanced across the discontinuity?]{.it}
-
-
-1. [Density]{.hi-slate} of running/forcing variable $\left( \text{X}_{i} \right)$
-
-<br>[Is there evidence of sorting into treatment (across the threshold)?]{.it}
-
----
-<span id="graph-outcome"></span>
 ## Outcomes by running variable
 
 These figures tend to show the average value of the outcome $\text{Y}_{i}$ at evenly spaced bins of the running variable $\text{X}_{i}$.
-
 
 We have two parameter choices
 
@@ -1356,9 +1284,9 @@ $$
 
 We then calculate summaries for each bin.
 
----
 ## Outcomes by running variable
 
+::: {.smaller}
 The bin's [number of observations]{.hi-slate}, $N_k$
 $$
 \begin{align}
@@ -1379,9 +1307,9 @@ $$
    \overline{Y}_k = \dfrac{1}{N_k} \sum_{i=1}^N \text{Y}_{i} \times \mathbb{I}\left\{ b_k < \text{X}_{i} \le b_{k+1} \right\}
 \end{align}
 $$
----
-exclude: true
+:::
 
+---
 
 ```{R, graph0, echo = F}
 # Generate data
@@ -1396,7 +1324,6 @@ mutate(y = 1 + d * 4 + (x > 0) * 2 + rnorm(n(), sd = 0.5)) %>%
 mutate(z = 2 * ((x - mean(x))/sd(x))^3 + rnorm(n(), sd = 1))
 ```
 
----
 ## Outcomes by running variable
 
 Plot $\overline{\text{Y}}_k$ against the midpoint of each bin.
@@ -1414,7 +1341,6 @@ theme_pander(base_size = 20, base_family = "Arial") +
 theme(axis.title.y = element_text(angle = 0, vjust = 0.5, family = "Helvetica"))
 ```
 
----
 ## Treatment by running variable
 
 Plot $\overline{\text{D}}_k$ against the midpoint of each bin.
@@ -1433,15 +1359,13 @@ scale_x_continuous(TeX("$X_i - c$")) +
 theme_pander(base_size = 20, base_family = "Arial") +
 theme(axis.title.y = element_text(angle = 0, vjust = 0.5, family = "Helvetica"))
 ```
----
-<span id="graph-cov"></span>
+
+
 ## Covariates by running variable
 
 Now we apply the same approach to covariates $\left( \text{Z}_{i} \right)$.
 
-
 [Q2:]{.qa} Are covariates [smooth]{.hi-slate} across $c$? If not, your RD may be invalid.
-
 
 ```{R, graph-z, echo = F, fig.height = 3.5, fig.width = 7.5, fig.align = "left"}
 ggplot(data = graph_df, aes(x = x, y = z)) +
@@ -1453,8 +1377,8 @@ scale_x_continuous(TeX("$X_i - c$")) +
 theme_pander(base_size = 20, base_family = "Arial") +
 theme(axis.title.y = element_text(angle = 0, vjust = 0.5, family = "Helvetica"))
 ```
----
-<span id="graph-run"></span>
+
+
 ## Density of running variable
 
 Finally we looking for other violations of smoothness—particularly by potentially gaming the threshold.
@@ -1464,15 +1388,13 @@ Are individuals [bunching]{.hi-slate} just above or just below the threshold?
 If so, folks just below the threshold don't give us the clean counterfactual for the folks just above the threshold.
 
 McCrary (2008) suggests testing the density of $\text{X}_{i}$ at $c$.
----
-<span id="graph-run"></span>
+
+
 ## Density of running variable
 
 Effectively, we can plot $N_k$ at the midpoint of each bin.
 
-
 [Q3]{.qa} Is the distribution of $\text{X}_{i}$ smooth across $c$?
-
 
 ```{R, graph-run, echo = F, fig.height = 5.5, fig.width = 7.5, fig.align = "left"}
 ggplot(data = graph_df, aes(x = x, y = n)) +
@@ -1485,7 +1407,6 @@ theme_pander(base_size = 20, base_family = "Arial") +
 theme(axis.title.y = element_text(angle = 0, vjust = 0.5, family = "Helvetica"))
 ```
 
----
 ## Density of running variable
 
 [Likely bunching]{.hi-slate} (problem)
@@ -1504,6 +1425,7 @@ scale_x_continuous(TeX("$X_i - c$")) +
 theme_pander(base_size = 20, base_family = "Arial") +
 theme(axis.title.y = element_text(angle = 0, vjust = 0.5, family = "Helvetica"))
 ```
+
 ---
 
 [Q3:]{.qa} Is the density of $\text{X}_{i}$ smooth near $c$?
@@ -1523,6 +1445,7 @@ ggplot(data = dat, aes(x = x)) +
   theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
 ```
+
 ---
 
 [Q3:]{.qa} Is the density of $\text{X}_{i}$ smooth near $c$?
@@ -1546,8 +1469,6 @@ ggplot(data = dat, aes(x = x)) +
 
 ```
 
-
----
 ## Additional points
 
 1. No bin should cross the threshold.
@@ -1556,18 +1477,498 @@ ggplot(data = dat, aes(x = x)) +
 
 Again, if these graphs are not clear and convincing, it's going to be hard to make the case that you have a true/credible discontinuity.
 $\left( \color{#0073e6}{\beta_1} - \color{#006400}{\beta_0} \right)$
+
+
+# Optimal Bandwidths and Data-Driven RD Plots
+## Optimal Bandwidths and Data-Driven RD Plots
+
+::: {.smaller}
+- Modern RD practice separates two tasks:
+  - **point estimation** of the discontinuity
+  - **valid inference** on that discontinuity
+- The key tuning parameter is the **bandwidth** $h$: how much data near the cutoff we use.
+- Too small $h$:
+  - low bias
+  - high variance
+- Too large $h$:
+  - lower variance
+  - more smoothing bias
+- The `rdrobust` framework makes this tradeoff **data-driven** rather than ad hoc.
+:::
+
+## The importance of bandwidth
+
+For a sharp RD,
+$$
+\tau_{SRD}
+=
+\lim_{x \downarrow c} E[Y_i \mid X_i=x]
+-
+\lim_{x \uparrow c} E[Y_i \mid X_i=x].
+$$
+
+Local polynomial RD estimates this jump using only observations with
+$X_i \in [c-h,\, c+h]$.
+
+## The importance of bandwidth
+
+**Intuition**
+
+- RD is a **local extrapolation** problem at the cutoff.
+- The bandwidth determines how “local” the comparison is.
+- Choosing $h$ is therefore not cosmetic:
+  it changes the estimator, the bias, the variance, and the confidence interval.
+
+**Takeaway**
+
+- In RD, “specification choice” is largely a **bandwidth choice**.
+- `rdbwselect()` and `rdrobust()` formalize that choice.
+
+## MSE-Optimal Bandwidth
+
+Let $\hat\tau(h)$ be the local polynomial RD estimator.
+
+The mean squared error criterion is
+$$
+MSE(h) = \mathrm{Bias}(\hat\tau(h))^2 + \mathrm{Var}(\hat\tau(h)).
+$$
+
+The **MSE-optimal bandwidth** $h_{MSE}$ chooses $h$ to minimize this tradeoff.
+
+## MSE-Optimal Bandwidth
+
+$$
+MSE(h) = \mathrm{Bias}(\hat\tau(h))^2 + \mathrm{Var}(\hat\tau(h)).
+$$
+
+**Intuition**
+
+- We want enough data to reduce noise,
+- but not so much that curvature away from the cutoff biases the local comparison.
+
+**Why this matters**
+
+- $h_{MSE}$ is typically excellent for **estimating the jump**.
+- But it is often **too large for conventional inference** because smoothing bias can remain non-negligible.
+- If you estimate with $h_{MSE}$ and then use naive local-linear standard inference,
+  confidence intervals can undercover.
+
+
+## Optimal bandwidth and standard inference
+
+MSE-optimal bandwidth balances **bias² + variance** for *point estimation* —  
+it does **not** make bias negligible.
+
+### What standard inference assumes
+
+Naive local-linear CI:
+$$
+\hat\tau(h) \pm 1.96 \cdot SE(\hat\tau(h))
+$$
+
+This is valid only if:
+
+- bias $\approx 0$ (asymptotically negligible)
+- uncertainty is dominated by variance
+
 ---
-<!-- layout: true -->
-<!-- #Extensions -->
 
-<!-- --- -->
-<!-- name: extend -->
-<!-- class: inverse, middle -->
-<!-- --- -->
+### What actually happens at $h_{MSE}$
 
-<!-- ## Bandwidth selection -->
+- $h_{MSE}$ is **relatively large** (to reduce variance)
+  - smoothing bias is **non-negligible**
+- estimator is centered at:
+$$
+E[\hat\tau(h_{MSE})] = \tau + \text{Bias}
+$$
 
+So CI is centered at the **wrong value**
 
-```{R, generate pdfs, include = F, eval = F}
-pagedown::chrome_print("09-RD.Rmd")
-```
+---
+
+### Intuition
+
+- You are fitting a smooth curve over a **curved regression function**
+- Near the cutoff:
+  - curvature ⇒ systematic misspecification
+- Larger bandwidth:
+  - more curvature included
+  - ⇒ **bias grows**
+
+---
+
+### Why this causes undercoverage
+
+Your CI:
+$$
+[\hat\tau \pm 1.96 \cdot SE]
+$$
+
+But truth is:
+$$
+\tau = \hat\tau - \text{Bias}
+$$
+
+[If:]{.hi-slate} $|\text{Bias}|$ is large relative to $SE$
+
+[Then:]{.hi-slate} CI is **shifted away from truth**
+
+  - misses $\tau$ too often  
+  - **coverage < 95% (undercoverage)**
+
+## Practical implications:
+
+- $h_{MSE}$ solves optimzes between bias and variance
+- But inference needs:$\text{Bias} \ll SE$
+  - These are **not the same objective**
+- $h_{MSE}$ is great for **estimating the jump**
+- but is **too large for naive inference**
+- Solutoin:
+  - either shrink bandwidth (inefficient), or
+  - use **robust bias correction (preferred)**
+
+> MSE-optimal bandwidth keeps bias small *relative to variance*,  
+> but inference requires bias to be small *relative to the standard error*.
+
+## Robust Bias Correction (RBC)
+
+The robust RD papers show that conventional inference can fail with “large” bandwidths.
+
+A stylized RBC interval is
+$$
+\hat\tau(h_{MSE}) - \hat B
+\;\pm\;
+1.96 \sqrt{\hat V + \hat W},
+$$
+where:
+
+- $\hat B$ = estimated leading bias
+- $\hat V$ = usual variance piece
+- $\hat W$ = adjustment for extra uncertainty from estimating the bias
+
+---
+
+### Intuition
+
+- Do **not** throw away data just to kill bias mechanically.
+- Instead:
+  1. estimate the bias,
+  2. recenter the estimator,
+  3. inflate the standard error appropriately.
+
+### In practice
+
+- `rdrobust()` implements this directly.
+- This is why the package reports both:
+  - **Conventional**
+  - **Robust**
+
+## Coverage Error (CER)-Optimal Bandwidth
+
+There is a second bandwidth target: **coverage error**.
+
+Instead of minimizing point-estimation MSE, choose $h$ to minimize how far the confidence interval’s actual coverage is from its nominal level.
+
+**Conceptually**
+
+- $h_{MSE}$: optimize the estimator
+- $h_{CER}$: optimize the confidence interval
+
+--- 
+
+### Intuition
+
+- A good point estimate is not automatically a good inferential procedure.
+- CER-optimal bandwidths are typically **smaller** than MSE-optimal bandwidths because inference is more sensitive to bias.
+
+### In practice
+
+- Use $h_{MSE}$ when your emphasis is the point estimate.
+- Use RBC inference by default.
+- If inference is the main object, CER-based choices are especially attractive.
+
+## RD Plots as data-driven binscatters
+
+An RD plot combines:
+
+- a **global polynomial fit** for visual shape
+- **binned local means** to show local variation
+
+The binned means are a special case of a **binscatter / partitioning estimator**.
+
+Two main binning choices:
+
+- **Evenly-spaced bins (ES):** all bins have the same width in $X$
+  - ES is easy to read on the $x$-axis.
+
+- **Quantile-spaced bins (QS):** bins have roughly the same number of observations
+  - QS adapts better when the running variable is unevenly distributed.
+
+## Choosing the Number of Bins
+
+`rdplot()` offers two main data-driven criteria.
+
+1. IMSE-optimal bins
+- Choose the number of bins to minimize an integrated mean squared error criterion.
+  - smoothly traces the regression function
+  - shows global shape
+
+2. Mimicking-variance (MV) bins
+- Choose the number of bins so the binned means reflect the raw-data variability.
+  - shows true noise in data
+  - avoids plots that look “too smooth”
+
+<!-- # Simulation -->
+
+<!-- ## Goal -->
+
+<!-- Simulate an RD design where: -->
+
+<!-- - the true treatment effect at the cutoff is known -->
+<!-- - the conditional expectation is **curved** near the cutoff -->
+<!-- - that curvature creates smoothing bias when bandwidths are too wide -->
+
+<!-- Then we compare: -->
+
+<!-- - local linear RD with a **small ad hoc bandwidth** -->
+<!-- - local linear RD with **MSE-optimal bandwidth** -->
+<!-- - local linear RD with **naive conventional CI** -->
+<!-- - local linear RD with **robust bias-corrected CI** -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| warning: false -->
+<!-- #| message: false -->
+
+<!-- set.seed(530) -->
+
+<!-- gen_rd_data <- function(n = 2000, tau = 1, sigma = 0.25) { -->
+<!--   x <- runif(n, -1, 1) -->
+<!--   d <- as.integer(x >= 0) -->
+
+<!--   # Much stronger curvature, especially near the cutoff -->
+<!--   # and asymmetric shape across left and right sides -->
+<!--   mu0 <- ifelse( -->
+<!--     x < 0, -->
+<!--     0.2 + 0.8 * x + 10 * x^2 + 25 * x^3 + 20 * x^4, -->
+<!--     0.2 + 0.8 * x +  3 * x^2 - 10 * x^3 +  8 * x^4 -->
+<!--   ) -->
+
+<!--   mu1 <- mu0 + tau -->
+
+<!--   y <- ifelse(d == 1, mu1, mu0) + rnorm(n, sd = sigma) -->
+
+<!--   data.table(x = x, d = d, y = y) -->
+<!-- } -->
+
+<!-- tau_true <- 1 -->
+
+<!-- one_rep <- function(n = 2000, tau = 1, h_small = 0.12) { -->
+<!--   dt <- gen_rd_data(n = n, tau = tau) -->
+
+<!--   fit_mse <- rdrobust( -->
+<!--     y = dt$y, x = dt$x, c = 0, -->
+<!--     p = 1, kernel = "triangular", -->
+<!--     bwselect = "mserd" -->
+<!--   ) -->
+
+<!--   fit_small <- rdrobust( -->
+<!--     y = dt$y, x = dt$x, c = 0, -->
+<!--     p = 1, kernel = "triangular", -->
+<!--     h = h_small, b = h_small -->
+<!--   ) -->
+
+<!--   fit_large <- rdrobust( -->
+<!--     y = dt$y, x = dt$x, c = 0, -->
+<!--     p = 1, kernel = "triangular", -->
+<!--     h = 0.45, b = 0.45 -->
+<!--   ) -->
+
+<!--   tau_hat_large <- fit_large$Estimate[1] -->
+
+<!--   ci_large_conv_l <- fit_large$ci[1, 1] -->
+<!--   ci_large_conv_u <- fit_large$ci[1, 2] -->
+
+<!--   ci_large_rbc_l <- fit_large$ci[3, 1] -->
+<!--   ci_large_rbc_u <- fit_large$ci[3, 2] -->
+
+<!--   tau_hat_mse <- fit_mse$Estimate[1] -->
+<!--   tau_hat_small <- fit_small$Estimate[1] -->
+
+<!--   ci_conv_l <- fit_mse$ci[1, 1] -->
+<!--   ci_conv_u <- fit_mse$ci[1, 2] -->
+
+<!--   ci_rbc_l <- fit_mse$ci[3, 1] -->
+<!--   ci_rbc_u <- fit_mse$ci[3, 2] -->
+
+<!--   ci_small_rbc_l <- fit_small$ci[3, 1] -->
+<!--   ci_small_rbc_u <- fit_small$ci[3, 2] -->
+
+<!--   data.table( -->
+<!--     h_mse = fit_mse$bws[1, 1], -->
+<!--     b_mse = fit_mse$bws[1, 2], -->
+<!--     tau_hat_mse = tau_hat_mse, -->
+<!--     tau_hat_small = tau_hat_small, -->
+<!--     sqerr_mse = (tau_hat_mse - tau_true)^2, -->
+<!--     sqerr_small = (tau_hat_small - tau_true)^2, -->
+<!--     sqerr_large = (tau_hat_large - tau_true)^2, -->
+<!--     cover_conv_mse = as.integer(tau_true >= ci_conv_l & tau_true <= ci_conv_u), -->
+<!--     cover_conv_large = as.integer(tau_true >= ci_large_conv_l & tau_true <= ci_large_conv_u), -->
+<!--     cover_rbc_mse = as.integer(tau_true >= ci_rbc_l & tau_true <= ci_rbc_u), -->
+<!--     cover_rbc_small = as.integer(tau_true >= ci_small_rbc_l & tau_true <= ci_small_rbc_u), -->
+<!--     cover_rbc_large = as.integer(tau_true >= ci_large_rbc_l & tau_true <= ci_large_rbc_u), -->
+<!--     length_conv_mse = ci_conv_u - ci_conv_l, -->
+<!--     length_conv_large = ci_large_conv_u - ci_large_conv_l, -->
+<!--     length_rbc_mse = ci_rbc_u - ci_rbc_l, -->
+<!--     length_rbc_small = ci_small_rbc_u - ci_small_rbc_l, -->
+<!--     length_rbc_large = ci_large_rbc_u - ci_large_rbc_l -->
+<!--   ) -->
+<!-- } -->
+
+<!-- R <- 1000 -->
+<!-- sim <- rbindlist(replicate(R, one_rep(), simplify = FALSE)) -->
+
+<!-- summary_tab <- sim[, .( -->
+<!--   mean_h_mse = mean(h_mse), -->
+<!--   rmse_mse = sqrt(mean(sqerr_mse)), -->
+<!--   rmse_small = sqrt(mean(sqerr_small)), -->
+<!--   bias_mse = mean(tau_hat_mse - tau_true), -->
+<!--   rmse_large = sqrt(mean(sqerr_large)), -->
+<!--   bias_small = mean(tau_hat_small - tau_true), -->
+<!--   coverage_conv_mse = mean(cover_conv_mse), -->
+<!--   coverage_conv_large = mean(cover_conv_large), -->
+<!--   coverage_rbc_mse = mean(cover_rbc_mse), -->
+<!--   coverage_rbc_small = mean(cover_rbc_small), -->
+<!--   coverage_rbc_large = mean(cover_rbc_large), -->
+<!--   avg_len_conv_mse = mean(length_conv_mse), -->
+<!--   avg_len_conv_large = mean(length_conv_large), -->
+<!--   avg_len_rbc_mse = mean(length_rbc_mse), -->
+<!--   avg_len_rbc_small = mean(length_rbc_small), -->
+<!--   avg_len_rbc_large = mean(length_rbc_large) -->
+<!-- )] -->
+
+<!-- summary_long <- data.table( -->
+<!--   Statistic = c( -->
+<!--     "Mean MSE-optimal bandwidth", -->
+<!--     "RMSE: MSE-optimal bandwidth", -->
+<!--     "RMSE: small bandwidth", -->
+<!--     "Bias: MSE-optimal bandwidth", -->
+<!--     "Bias: small bandwidth", -->
+<!--     "Coverage: conventional CI @ h_MSE", -->
+<!--     "Coverage: conventional CI @ large h", -->
+<!--     "Coverage: robust CI @ h_MSE", -->
+<!--     "Coverage: robust CI @ small h", -->
+<!--     "Coverage: robust CI @ large h", -->
+<!--     "Avg. length: conventional CI @ h_MSE", -->
+<!--     "Avg. length: conventional CI @ large h", -->
+<!--     "Avg. length: robust CI @ h_MSE", -->
+<!--     "Avg. length: robust CI @ small h", -->
+<!--     "Avg. length: robust CI @ large h" -->
+<!--   ), -->
+<!--   Value = c( -->
+<!--     summary_tab$mean_h_mse, -->
+<!--     summary_tab$rmse_mse, -->
+<!--     summary_tab$rmse_small, -->
+<!--     summary_tab$bias_mse, -->
+<!--     summary_tab$bias_small, -->
+<!--     summary_tab$coverage_conv_mse, -->
+<!--     summary_tab$coverage_rbc_mse, -->
+<!--     summary_tab$coverage_rbc_small, -->
+<!--     summary_tab$avg_len_conv_mse, -->
+<!--     summary_tab$avg_len_rbc_mse, -->
+<!--     summary_tab$avg_len_rbc_small -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- plot_dt <- rbind( -->
+<!--   sim[, .(estimate = tau_hat_small, method = "Small h")], -->
+<!--   sim[, .(estimate = tau_hat_mse, method = "MSE-optimal h")] -->
+<!-- ) -->
+
+<!-- p_sampling <- ggplot(plot_dt, aes(x = estimate)) + -->
+<!--   geom_histogram(bins = 40) + -->
+<!--   geom_vline(xintercept = tau_true, linetype = 2) + -->
+<!--   facet_wrap(~method, scales = "free_y") + -->
+<!--   labs( -->
+<!--     x = "Estimated RD effect", -->
+<!--     y = "Count", -->
+<!--     title = "Sampling distributions of RD point estimators" -->
+<!--   ) -->
+
+<!-- cover_dt <- data.table( -->
+<!--   method = c("Conventional CI @ h_MSE", "Robust CI @ h_MSE", "Robust CI @ small h"), -->
+<!--   coverage = c( -->
+<!--     mean(sim$cover_conv_mse), -->
+<!--     mean(sim$cover_rbc_mse), -->
+<!--     mean(sim$cover_rbc_small) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- p_coverage <- ggplot(cover_dt, aes(x = method, y = coverage)) + -->
+<!--   geom_col() + -->
+<!--   geom_hline(yintercept = 0.95, linetype = 2) + -->
+<!--   coord_cartesian(ylim = c(0, 1)) + -->
+<!--   labs( -->
+<!--     x = NULL, -->
+<!--     y = "Coverage probability", -->
+<!--     title = "Confidence interval coverage" -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- ## Monte Carlo Summary -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| warning: false -->
+<!-- #| message: false -->
+
+<!-- knitr::kable(summary_long, digits = 3, align = c("l", "r")) -->
+<!-- ``` -->
+
+<!-- ## Sampling Distributions -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| warning: false -->
+<!-- #| message: false -->
+<!-- #| fig-width: 10 -->
+<!-- #| fig-height: 6 -->
+
+<!-- p_sampling -->
+<!-- ``` -->
+
+<!-- ## Coverage Comparison -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| warning: false -->
+<!-- #| message: false -->
+<!-- #| fig-width: 10 -->
+<!-- #| fig-height: 6 -->
+
+<!-- p_coverage -->
+<!-- ``` -->
+
+<!-- ## Interpretation -->
+
+<!-- - If **RMSE is lower** for the MSE-optimal bandwidth, then $h_{MSE}$ is doing its job for **point estimation**. -->
+<!-- - If **coverage is below 0.95** for the conventional CI at $h_{MSE}$, then naive inference is failing. -->
+<!-- - If **coverage is closer to 0.95** for the robust CI, then RBC is repairing inference. -->
+
+<!-- ::: {.fragment} -->
+<!-- **Economic intuition** -->
+
+<!-- - $h_{MSE}$ tolerates some bias because that can reduce variance enough to improve RMSE. -->
+<!-- - But conventional inference behaves as if the estimator is centered correctly. -->
+<!-- - RBC estimates and removes the leading bias, then adjusts uncertainty. -->
+<!-- ::: -->
+
+<!-- ## Bottom Line -->
+
+<!-- > The bandwidth that is best for estimating the jump is not automatically the bandwidth that is best for naive inference. -->
+
+<!-- ::: {.fragment} -->
+<!-- - **Point estimation target:** low RMSE -->
+<!-- - **Inference target:** correct coverage -->
+<!-- - **RBC bridges the two** -->
+<!-- ::: -->
