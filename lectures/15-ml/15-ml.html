@@ -1383,9 +1383,6 @@ Daniel Brent
 <h1>Schedule</h1>
 
 </section>
-<section id="schedule-1" class="slide level2">
-<h2>Schedule</h2>
-</section>
 <section id="last-time" class="slide level2">
 <h2>Last time</h2>
 <ul>
@@ -1656,7 +1653,7 @@ Daniel Brent
 
 <h3 id="leave-one-out-cv-loocv-1">Leave-one-out CV (LOOCV)</h3>
 <p>One challenge with LOOCV is that it can be computationally intensive: we need to run the model <span class="math inline">\(N\)</span> times!</p>
-<p>There is a shortcut for regression that allows us to calculate this with only one model run by exploiting the residuals and the <em>leverage statistic</em> <span class="math inline">\((h_i)\)</span>.<sup>*****</sup></p>
+<p>There is a shortcut for regression that allows us to calculate this with only one model run by exploiting the residuals and the <em>leverage statistic</em> <span class="math inline">\((h_i)\)</span>.</p>
 <p><span class="math display">\[CV_{(N)} = \frac{1}{N} \sum_{i=1}^N \left( \frac{y_i - \hat{y_i}}{1-h_i} \right)^2\]</span></p>
 <p>Leverage is a measure of an individual observations role on model parameters. It is defined as: <span class="math inline">\(h_i = \frac{1}{N} + \frac{(x_i - \bar{x})^2}{\sum_{i&#39;=1}^N x_i&#39; - \bar{x})^2}\)</span></p>
 </section>

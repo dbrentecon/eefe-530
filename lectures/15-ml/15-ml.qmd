@@ -100,8 +100,6 @@ tidy_table <- function(x, terms, highlight_row = 1, highlight_color = "black", h
 ```
 
 # Schedule
-## Schedule
-
 ## Last time
 
 - Design and analysis of randomized experiments
@@ -421,7 +419,7 @@ $$CV_{(N)} = \frac{1}{N} \sum_{i=1}^N \text{MSE}_i$$
 
 One challenge with LOOCV is that it can be computationally intensive: we need to run the model $N$ times!
 
-There is a shortcut for regression that allows us to calculate this with only one model run by exploiting the residuals and the *leverage statistic* $(h_i)$.<sup>*****</sup>
+There is a shortcut for regression that allows us to calculate this with only one model run by exploiting the residuals and the *leverage statistic* $(h_i)$.
 
 $$CV_{(N)} = \frac{1}{N} \sum_{i=1}^N \left( \frac{y_i - \hat{y_i}}{1-h_i} \right)^2$$
 
