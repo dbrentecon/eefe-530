@@ -16,3 +16,4 @@
 # Quarto freeze cache
 _freeze/
 lectures/_freeze
+.positai

@@ -1,0 +1,512 @@
+ties=T)
+summary(gen.match)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+set.seed(530)
+# Cell structure
+cells <- tidyr::expand_grid(g = factor(c(1,2)), t = factor(c(1,2,3))) |>
+mutate(
+D = case_when(
+g == "1" & t %in% c("1","2") ~ 0,
+g == "1" & t == "3"         ~ 1,
+g == "2" & t == "1"         ~ 0,
+g == "2" & t %in% c("2","3")~ 1
+),
+# True ATE in each cell (only matters when treated)
+Delta = case_when(
+g == "1" & t == "3" ~ 1,
+g == "2" & t == "2" ~ 1,
+g == "2" & t == "3" ~ 4,
+TRUE ~ 0
+)
+)
+cells
+n_per_cell <- 800
+# Group FE and Time FE: common-trends holds by construction
+alpha_g  <- c("1" = 0.0, "2" = 0.0)
+lambda_t <- c("1" = 0.0, "2" = 0.0, "3" = 0.0)
+dat <- cells |>
+slice(rep(1:n(), each = n_per_cell)) |>
+mutate(
+u = rnorm(n(), mean = 0, sd = 1),
+Y0 = alpha_g[as.character(g)] + lambda_t[as.character(t)] + u,
+Y  = Y0 + D * Delta
+)
+# TWFE regression
+twfe <- lm(Y ~ D + g + t, data = dat)
+beta_hat <- coef(twfe)[["D"]]
+beta_hat
+dat
+table(dat$g)
+alpha_g  <- c("1" = 0.0, "2" = 0.0)
+lambda_t <- c("1" = 0.0, "2" = 0.0, "3" = 0.0)
+dat <- cells |>
+slice(rep(1:n(), each = n_per_cell)) |>
+mutate(
+u = rnorm(n(), mean = 0, sd = 1),
+Y0 = alpha_g[as.character(g)] + lambda_t[as.character(t)] + u,
+Y  = Y0 + D * Delta
+)
+# TWFE regression
+twfe <- lm(Y ~ D + g + t, data = dat)
+beta_hat <- coef(twfe)[["D"]]
+beta_hat
+twfe
+# Cell-level D residuals (identical within cell)
+D_cell <- cells |>
+mutate(D = as.numeric(D))
+res_mod <- lm(D ~ g + t, data = D_cell)
+D_cell <- D_cell |>
+mutate(eps = resid(res_mod))
+# Normalize to get w_g,t as in the theorem:
+# w_g,t = eps / weighted-mean(eps) among treated cells
+treated <- D_cell |> filter(D == 1)
+# Balanced design => Ngt equal, so simple mean works (still do general form)
+mean_eps_treated <- mean(treated$eps)
+D_cell <- D_cell |>
+mutate(
+w = if_else(D == 1, eps / mean_eps_treated, NA_real_),
+# Total weight on each treated cell in the theorem is proportional to (Ngt/N1)*w.
+# With equal Ngt, (Ngt/N1) is just 1 / (# treated cells) here.
+cell_share = if_else(D == 1, 1 / nrow(treated), NA_real_),
+W_total = if_else(D == 1, cell_share * w, NA_real_)
+)
+D_cell |> filter(D == 1) |> select(g, t, eps, w, W_total)
+sum_weights <- sum((D_cell |> filter(D == 1))$W_total)
+sum_weights
+D_cell
+w_plot <- D_cell |>
+filter(D == 1) |>
+mutate(cell = paste0("g", g, ", t", t)) |>
+arrange(cell)
+ggplot(w_plot, aes(x = cell, y = W_total)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+labs(
+title = "Implied TWFE weights on treated cells (sum to 1, can be negative)",
+x = "Treated cell",
+y = "Weight"
+) +
+theme_minimal(base_size = 18)
+contrib <- D_cell |>
+filter(D == 1) |>
+mutate(
+cell = paste0("g", g, ", t", t),
+contribution = W_total * Delta
+) |>
+arrange(cell)
+beta_from_weights <- sum(contrib$contribution)
+contrib |> select(cell, W_total, Delta, contribution)
+beta_hat
+beta_from_weights
+ggplot(contrib, aes(x = cell, y = contribution)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+labs(
+title = "Weighted contributions: negative-weighted long-run effect dominates",
+subtitle = paste0("TWFE coef = ", round(beta_hat, 3),
+" | Sum(W·Δ) = ", round(beta_from_weights, 3)),
+x = "Treated cell",
+y = "Contribution (Weight × ATE)"
+) +
+theme_minimal(base_size = 18)
+# twfe_negative_weights_sim.R
+# Minimal TWFE negative-weights + sign-reversal simulation (data.table + ggplot2)
+# Daniel Brent / EEFE 530
+# ------------------------------------------------------------
+suppressPackageStartupMessages({
+library(data.table)
+library(ggplot2)
+})
+set.seed(530)
+cells <- CJ(g = factor(c(1, 2)), t = factor(c(1, 2, 3)))
+cells[, D := fifelse(g == "1" & t %in% c("1", "2"), 0L,
+fifelse(g == "1" & t == "3",           1L,
+fifelse(g == "2" & t == "1",           0L, 1L)))]
+# True ATE by treated cell (all positive on treated cells; dynamic effect in g=2)
+cells[, Delta := 0]
+cells[g == "1" & t == "3", Delta := 1]
+cells[g == "2" & t == "2", Delta := 1]
+cells[g == "2" & t == "3", Delta := 4]
+# -----------------------------
+# 2) Simulate individual-level data (balanced within cell)
+# -----------------------------
+n_per_cell <- 800L
+dat <- cells[rep(.I, each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+# Common-trends holds by construction via additive group + time FE
+alpha_g  <- c("1" = 0.0, "2" = 0.0)
+lambda_t <- c("1" = 0.0, "2" = 0.0, "3" = 0.0)
+dat[, Y0 := alpha_g[as.character(g)] + lambda_t[as.character(t)] + u]
+# twfe_negative_weights_sim.R
+# Minimal TWFE negative-weights + sign-reversal simulation (data.table + ggplot2)
+# Daniel Brent / EEFE 530
+# ------------------------------------------------------------
+suppressPackageStartupMessages({
+library(data.table)
+library(ggplot2)
+})
+set.seed(530)
+# -----------------------------
+# 1) Minimal setup: 2 groups x 3 periods (staggered adoption)
+# -----------------------------
+cells <- CJ(g = factor(c(1, 2)), t = factor(c(1, 2, 3)))
+cells[, D := fifelse(g == "1" & t %in% c("1", "2"), 0L,
+fifelse(g == "1" & t == "3",           1L,
+fifelse(g == "2" & t == "1",           0L, 1L)))]
+# True ATE by treated cell (all positive on treated cells; dynamic effect in g=2)
+cells[, Delta := 0]
+cells[g == "1" & t == "3", Delta := 1]
+cells[g == "2" & t == "2", Delta := 1]
+cells[g == "2" & t == "3", Delta := 4]
+# -----------------------------
+# 2) Simulate individual-level data (balanced within cell)
+# -----------------------------
+n_per_cell <- 800L
+dat <- cells[rep(.I, each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+# Common-trends holds by construction via additive group + time FE
+alpha_g  <- c("1" = 0.0, "2" = 0.0)
+lambda_t <- c("1" = 0.0, "2" = 0.0, "3" = 0.0)
+dat[, Y0 := alpha_g[as.character(g)] + lambda_t[as.character(t)] + u]
+dat
+# -----------------------------
+# 2) Simulate individual-level data (balanced within cell)
+# -----------------------------
+n_per_cell <- 800L
+dat <- cells[rep(.I, each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+dat
+cells
+rm(list=ls())
+library(data.table)
+library(ggplot2)
+set.seed(530)
+# -----------------------------
+# 1) Minimal setup: 2 groups x 3 periods (staggered adoption)
+# -----------------------------
+cells <- CJ(g = factor(c(1, 2)), t = factor(c(1, 2, 3)))
+cells[, D := fifelse(g == "1" & t %in% c("1", "2"), 0L,
+fifelse(g == "1" & t == "3",           1L,
+fifelse(g == "2" & t == "1",           0L, 1L)))]
+cells[, Delta := 0]
+cells[g == "1" & t == "3", Delta := 1]
+cells[g == "2" & t == "2", Delta := 1]
+cells[g == "2" & t == "3", Delta := 4]
+n_per_cell <- 800L
+dat <- cells[rep(.I, each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+dat
+dat
+cells
+n_per_cell <- 800L
+setDT(cells)
+# Repeat rows (guaranteed data.table output)
+dat <- cells[rep(seq_len(.N), each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+dat
+dat <- cells[rep(seq_len(.N), each = n_per_cell)]
+dat[, u := rnorm(.N, mean = 0, sd = 1)]
+# Common-trends holds by construction via additive group + time FE
+alpha_g  <- c("1" = 0.0, "2" = 0.0)
+lambda_t <- c("1" = 0.0, "2" = 0.0, "3" = 0.0)
+dat[, Y0 := alpha_g[as.character(g)] + lambda_t[as.character(t)] + u]
+dat[, Y  := Y0 + D * Delta]
+# -----------------------------
+# 3) TWFE regression
+# -----------------------------
+twfe <- lm(Y ~ D + g + t, data = dat)
+twfe
+twfe
+message(sprintf("TWFE coefficient (D): %.4f", beta_hat))
+beta_hat <- unname(coef(twfe)[["D"]])
+message(sprintf("TWFE coefficient (D): %.4f", beta_hat))
+# -----------------------------
+# 4) Compute implied TWFE weights on treated cells (sharp design)
+#    Residualize cell-level D on group + time FE, then normalize among treated cells.
+# -----------------------------
+D_cell <- unique(cells[, .(g, t, D, Delta)])
+res_mod <- lm(D ~ g + t, data = D_cell)
+D_cell[, eps := resid(res_mod)]
+D_cell
+treated_cells <- D_cell[D == 1]
+mean_eps_treated <- treated_cells[, mean(eps)]
+mean_eps_treated
+D_cell[D == 1, `:=`(
+w = eps / mean_eps_treated,
+cell_share = 1 / .N
+)]
+D_cell[D == 1, W_total := cell_share * w]
+D_cell[D == 0, `:=`(w = NA_real_, cell_share = NA_real_, W_total = NA_real_)]
+w_check <- D_cell[D == 1, sum(W_total)]
+w_check
+contrib <- D_cell[D == 1][
+, `:=`(
+cell = paste0("g", g, ", t", t),
+contribution = W_total * Delta
+)
+][order(cell)]
+beta_from_weights <- contrib[, sum(contribution)]
+message(sprintf("Sum(W_total * Delta): %.4f", beta_from_weights))
+p_w <- ggplot(contrib, aes(x = cell, y = W_total)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+labs(
+title = "Implied TWFE weights on treated cells (sum to 1; can be negative)",
+x = "Treated cell",
+y = "Weight"
+) +
+theme_minimal(base_size = 16)
+p_c <- ggplot(contrib, aes(x = cell, y = contribution)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+labs(
+title = "Weighted contributions: negative-weighted long-run effect can dominate",
+subtitle = sprintf("TWFE coef = %.3f | Sum(W·Δ) = %.3f", beta_hat, beta_from_weights),
+x = "Treated cell",
+y = "Contribution (Weight × ATE)"
+) +
+theme_minimal(base_size = 16)
+p_w <- ggplot(contrib, aes(x = cell, y = W_total)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+labs(
+title = "Implied TWFE weights on treated cells (sum to 1; can be negative)",
+x = "Treated cell",
+y = "Weight"
+) +
+theme_minimal(base_size = 16)
+# Print to screen (useful when sourcing interactively)
+print(p_w)
+print(p_c)
+make_multi_panel <- function(G = 30L, T = 8L,
+adopt_times = NULL,
+group_sizes = NULL,
+tau_fun = function(k) ifelse(k >= 0, 1 + 0.6*k, 0),
+noise_sd = 1) {
+if (is.null(adopt_times)) {
+adopt_times <- sample(c(3L, 4L, 5L, 6L, Inf), G, replace = TRUE,
+prob = c(0.15, 0.25, 0.25, 0.20, 0.15))
+}
+if (is.null(group_sizes)) {
+group_sizes <- round(exp(rnorm(G, 6.3, 0.7)))  # very unbalanced
+}
+dtg <- data.table(g = factor(seq_len(G)),
+adopt = adopt_times,
+Ng = group_sizes)
+dtt <- data.table(t = factor(seq_len(T)))
+cells <- dtg[, .(g, adopt, Ng)][dtt, on = .(dummy=NA)][, dummy := NULL]
+cells[, t_int := as.integer(as.character(t))]
+cells[, D := as.integer(t_int >= adopt)]
+cells[is.infinite(adopt), D := 0L]
+cells[, k := t_int - adopt]
+cells[is.infinite(adopt), k := NA_integer_]
+cells[, Delta := 0.0]
+cells[D == 1, Delta := tau_fun(k)]
+dat <- cells[rep(.I, times = Ng)]
+dat[, u := rnorm(.N, sd = noise_sd)]
+dat[, Y0 := u]
+dat[, Y  := Y0 + D * Delta]
+list(cells = cells, dat = dat, dtg = dtg)
+}
+multi <- make_multi_panel()
+library(data.table)
+library(ggplot2)
+set.seed(530)
+make_minimal_panel <- function(n_per_cell = 800L,
+Delta_13 = 1, Delta_22 = 1, Delta_23 = 4,
+noise_sd = 1) {
+cells <- CJ(g = factor(c(1,2)), t = factor(c(1,2,3)))
+cells[, D := fifelse(g=="1" & t %in% c("1","2"), 0L,
+fifelse(g=="1" & t=="3", 1L,
+fifelse(g=="2" & t=="1", 0L, 1L)))]
+cells[, Delta := 0]
+cells[g=="1" & t=="3", Delta := Delta_13]
+cells[g=="2" & t=="2", Delta := Delta_22]
+cells[g=="2" & t=="3", Delta := Delta_23]
+dat <- cells[rep(1:.N, each = n_per_cell)]
+dat[, u := rnorm(.N, sd = noise_sd)]
+dat[, Y0 := u]
+dat[, Y  := Y0 + D * Delta]
+list(cells = cells, dat = dat)
+}
+min_ex <- make_minimal_panel()
+dat_min <- min_ex$dat
+twfe_min <- lm(Y ~ D + g + t, data = dat_min)
+beta_min <- unname(coef(twfe_min)[["D"]])
+att_min  <- dat_min[D==1, mean(Delta)]
+data.table(TWFE = beta_min, Sample_ATT = att_min)
+resid_D <- function(dt) resid(lm(D ~ g + t, data = dt))
+did_2x2 <- function(dt, g_treat, g_ctrl, t_pre, t_post) {
+m <- dt[g %in% c(g_treat, g_ctrl) & t %in% c(t_pre, t_post),
+.(Y = mean(Y)), by = .(g, t)]
+yt_post <- m[g == g_treat & t == t_post, Y]
+yt_pre  <- m[g == g_treat & t == t_pre,  Y]
+yc_post <- m[g == g_ctrl  & t == t_post, Y]
+yc_pre  <- m[g == g_ctrl  & t == t_pre,  Y]
+(yt_post - yt_pre) - (yc_post - yc_pre)
+}
+bacon_minimal <- function(dat) {
+comps <- data.table(
+comp = c("Early vs Late (1->2): g2 treated, g1 not-yet",
+"Late vs Early (2->3): g1 treated, g2 already-treated"),
+g_treat = factor(c(2,1)),
+g_ctrl  = factor(c(1,2)),
+t_pre   = factor(c(1,2)),
+t_post  = factor(c(2,3)),
+type    = c("good (not-yet-treated control)", "bad (already-treated control)")
+)
+comps[, `:=`(did = NA_real_, w_raw = NA_real_)]
+for (i in 1:nrow(comps)) {
+gi_t <- comps[i, g_treat]
+gi_c <- comps[i, g_ctrl]
+ti_0 <- comps[i, t_pre]
+ti_1 <- comps[i, t_post]
+sub <- dat[g %in% c(gi_t, gi_c) & t %in% c(ti_0, ti_1), .(g, t, D, Y)]
+comps[i, did := did_2x2(dat, gi_t, gi_c, ti_0, ti_1)]
+e <- resid_D(sub)
+comps[i, w_raw := var(e)]
+}
+comps[, w := w_raw / sum(w_raw)]
+comps[, contribution := w * did]
+comps
+}
+bacon_min <- bacon_minimal(dat_min)
+bacon_beta <- bacon_min[, sum(contribution)]
+bacon_min
+ggplot(bacon_min, aes(x = comp, y = w, fill = type)) +
+geom_col() +
+coord_flip() +
+labs(title = "Goodman–Bacon weights (minimal 2×3 design)",
+x = NULL, y = "Weight") +
+theme_minimal(base_size = 18) +
+theme(legend.position = "bottom")
+ggplot(bacon_min, aes(x = comp, y = contribution, fill = type)) +
+geom_hline(yintercept = 0) +
+geom_col() +
+coord_flip() +
+labs(title = "Contributions (weight × 2×2 DID)",
+subtitle = paste0("TWFE = ", round(beta_min, 3),
+" | Sum(w·DID) = ", round(bacon_beta, 3),
+" | Sample ATT = ", round(att_min, 3)),
+x = NULL, y = "Contribution") +
+theme_minimal(base_size = 18) +
+theme(legend.position = "bottom")
+make_multi_panel <- function(G = 30L, T = 8L,
+adopt_times = NULL,
+group_sizes = NULL,
+tau_fun = function(k) ifelse(k >= 0, 1 + 0.6*k, 0),
+noise_sd = 1) {
+if (is.null(adopt_times)) {
+adopt_times <- sample(c(3L, 4L, 5L, 6L, Inf), G, replace = TRUE,
+prob = c(0.15, 0.25, 0.25, 0.20, 0.15))
+}
+if (is.null(group_sizes)) {
+group_sizes <- round(exp(rnorm(G, 6.3, 0.7)))  # very unbalanced
+}
+dtg <- data.table(g = factor(seq_len(G)),
+adopt = adopt_times,
+Ng = group_sizes)
+dtt <- data.table(t = factor(seq_len(T)))
+cells <- dtg[, .(g, adopt, Ng)][dtt, on = .(dummy=NA)][, dummy := NULL]
+cells[, t_int := as.integer(as.character(t))]
+cells[, D := as.integer(t_int >= adopt)]
+cells[is.infinite(adopt), D := 0L]
+cells[, k := t_int - adopt]
+cells[is.infinite(adopt), k := NA_integer_]
+cells[, Delta := 0.0]
+cells[D == 1, Delta := tau_fun(k)]
+dat <- cells[rep(.I, times = Ng)]
+dat[, u := rnorm(.N, sd = noise_sd)]
+dat[, Y0 := u]
+dat[, Y  := Y0 + D * Delta]
+list(cells = cells, dat = dat, dtg = dtg)
+}
+multi <- make_multi_panel()
+multi
+quarto check
+install.packages("tinytex")
+tinytex::tlmgr_update()
+tinytex::tlmgr_update(self = TRUE)
+tinytex::reinstall_tinytex()
+tinytex::tlmgr_repo("https://ctan.math.illinois.edu/systems/texlive/tlnet")
+tinytex::tlmgr_update(self = TRUE)
+tinytex::tlmgr_update()
+tinytex::tlmgr_install("koma-script")
+install.packages("usethis")
+usethis::create_github_token()
+library(data.table)
+library(fixest)
+library(knitr)
+set.seed(530)
+#-----------------------------
+# Design parameters
+#-----------------------------
+G <- 50          # clusters
+m <- 20          # units per cluster
+N <- G * m
+rho <- 0.10      # target ICC
+sigma2_total <- 1
+# variance decomposition to induce ICC = rho
+sigma2_cluster <- rho * sigma2_total
+sigma2_idio    <- (1 - rho) * sigma2_total
+# treatment assigned at cluster level
+cluster_dt <- data.table(
+cluster = 1:G,
+treat = rep(c(0, 1), each = G/2)
+)
+#-----------------------------
+# One draw for the numerical example
+#-----------------------------
+dt <- cluster_dt[CJ(cluster = 1:G, id_in_cluster = 1:m), on = "cluster"]
+dt[, u_g := rep(rnorm(G, 0, sqrt(sigma2_cluster)), each = m)]
+dt[, e_i := rnorm(.N, 0, sqrt(sigma2_idio))]
+dt[, y := 1 + 0 * treat + u_g + e_i]
+mod_ols  <- feols(y ~ treat, data = dt)
+mod_cl   <- feols(y ~ treat, data = dt, vcov = ~cluster)
+one_draw <- data.table(
+Estimator = c("Naive OLS SE", "Clustered SE"),
+Estimate  = c(coef(mod_ols)["treat"], coef(mod_cl)["treat"]),
+SE        = c(se(mod_ols)["treat"], se(mod_cl)["treat"]),
+t_stat    = c(coef(mod_ols)["treat"] / se(mod_ols)["treat"],
+coef(mod_cl)["treat"] / se(mod_cl)["treat"])
+)
+B <- 1000
+sim_res <- rbindlist(lapply(1:B, function(b) {
+dtb <- copy(cluster_dt)[CJ(cluster = 1:G, id_in_cluster = 1:m), on = "cluster"]
+dtb[, u_g := rep(rnorm(G, 0, sqrt(sigma2_cluster)), each = m)]
+dtb[, e_i := rnorm(.N, 0, sqrt(sigma2_idio))]
+dtb[, y := 1 + 0 * treat + u_g + e_i]
+mod1 <- feols(y ~ treat, data = dtb)
+mod2 <- feols(y ~ treat, data = dtb, vcov = ~cluster)
+data.table(
+rej_naive   = abs(coef(mod1)["treat"] / se(mod1)["treat"]) > 1.96,
+rej_cluster = abs(coef(mod2)["treat"] / se(mod2)["treat"]) > 1.96
+)
+}))
+mf <- 1 + (m - 1) * rho
+se_inflation <- sqrt(mf)
+n_eff <- N / mf
+summary_tab <- data.table(
+Quantity = c(
+"Clusters (G)",
+"Cluster size (m)",
+"Total N",
+"ICC (rho)",
+"Moulton factor",
+"SE inflation = sqrt(Moulton factor)",
+"Effective sample size"
+),
+Value = c(G, m, N, rho, round(mf, 2), round(se_inflation, 2), round(n_eff, 1))
+)
+reject_tab <- data.table(
+Method = c("Naive individual-level SE", "Cluster-robust SE"),
+`Rejection rate at 5% nominal level` = c(
+mean(sim_res$rej_naive),
+mean(sim_res$rej_cluster)
+)
+)
+kable(summary_tab, digits = 2, caption = "Design and implied Moulton calculations")
+kable(one_draw, digits = 3, caption = "One simulated experiment")
+kable(reject_tab, digits = 3, caption = "Monte Carlo rejection rates under the true null")
