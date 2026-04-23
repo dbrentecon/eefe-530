@@ -46,6 +46,7 @@
 
 .smaller { font-size: 0.85em; }
 .smallest { font-size: 0.75em; }
+.tiny { font-size: 0.65em; }
 .footnote { font-size: 0.7em; opacity: 0.9; margin-top: 1.5em; }
 
 /* Vertical centering only (no horizontal centering) */
